@@ -478,7 +478,7 @@
   }
 
   // ---- Research tab ----
-  const money = (x) => "₹" + Math.round(x).toLocaleString("en-IN");
+  const money = (x) => (x < 0 ? "−₹" : "₹") + Math.abs(Math.round(x)).toLocaleString("en-IN");
   const pct0 = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-IN", { maximumFractionDigits: 0 }) + "%";
   const waitText = (d) => d == null ? "never" : d < 60 ? `${Math.round(d)} days` : d < 730 ? `~${Math.round(d / 30.4)} months` : `~${(d / 365).toFixed(1)} years`;
 
@@ -516,13 +516,13 @@
       const tag = isHold ? `<span class="tag neutral">Benchmark</span>`
         : beat ? `<span class="tag good">✓ Beat holding</span>` : `<span class="tag bad">✗ Below holding</span>`;
       const open = state.open === r.id;
-      const years = m.yearly.map((y) => `<span class="${cls(y.returnPct)}">${y.year} ${pct0(y.returnPct)}</span>`).join("");
+      const years = m.yearly.map((y) => y.returnPct == null ? `<span class="flat">${y.year} —</span>` : `<span class="${cls(y.returnPct)}">${y.year} ${pct0(y.returnPct)}</span>`).join("");
       const picks = r.picks.length ? `<p><b>Settings it picked each year:</b> ${r.picks.map((p) => `${p.year}: ${esc(p.label)}`).join(" · ")}</p>` : "";
       const hs = r.hindsight ? `<p><b>Overfitting check:</b> the best settings chosen <i>after</i> seeing the results (${esc(r.hindsight.label)}) would show ${money(R.startInr * r.hindsight.multiple)}. The honest walk-forward result above is what you'd really have got.</p>` : "";
       return `
         <div class="rule ${isHold ? "is-hold" : ""}" role="button" tabindex="0" data-id="${r.id}" aria-expanded="${open}">
           <div class="rule-top"><span class="rule-name"><span class="rank">${i + 1}</span>${esc(r.name)}</span>${tag}</div>
-          <div class="big">${money(m.finalValue)} <small class="${cls(m.multiple - 1)}">${m.multiple >= 1 ? m.multiple.toLocaleString("en-IN", { maximumFractionDigits: m.multiple < 100 ? 1 : 0 }) + "×" : pct0((m.multiple - 1) * 100)}</small></div>
+          <div class="big ${m.finalValue < 0 ? "down" : ""}">${money(m.finalValue)} <small class="${cls(m.multiple - 1)}">${m.finalValue < 0 ? "lost all + owed tax" : m.multiple >= 1 ? m.multiple.toLocaleString("en-IN", { maximumFractionDigits: m.multiple < 100 ? 1 : 0 }) + "×" : pct0((m.multiple - 1) * 100)}</small></div>
           <div class="mini">
             <div><div class="label">Lowest point</div><div class="v ${m.lowestValue < R.startInr ? "down" : ""}">${money(m.lowestValue)}</div></div>
             <div><div class="label">Worst drop</div><div class="v down">${pct0(m.maxDrawdownPct)}</div></div>
@@ -533,6 +533,7 @@
           </div>
           <div class="detail" ${open ? "" : "hidden"}>
             <p>${esc(r.why)}</p>
+            ${m.finalValue < 0 ? `<p style="color:var(--bad)"><b>Ended owing tax.</b> It made big taxable profits early, then lost everything in a crash. Indian crypto tax doesn't let later losses cancel earlier gains, so you'd have lost all ${money(R.startInr)} <b>and still owed ${money(-m.finalValue)}</b> in tax. It stopped trading once the wallet hit zero.</p>` : ""}
             <p><b>Doubled in 1 yr</b> = out of ${m.rollingStarts} possible start dates (one per week), how many had doubled within a year. <b>Down after 1 yr</b> = how many were worth less than they started a year later. ${m.neverDoubledPct > 0 ? `${Math.round(m.neverDoubledPct)}% of start dates never doubled by today.` : ""}</p>
             <p><b>Worst case if you started on the unluckiest day:</b> your money fell ${pct0(m.worstDipFromStartPct)} below what you put in. In the market ${Math.round(m.inMarketPct)}% of the time.</p>
             <div class="years">${years}</div>

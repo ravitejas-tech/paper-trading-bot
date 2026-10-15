@@ -107,12 +107,12 @@ export function metrics<E extends object>(c: Curve, extra: E = {} as E) {
   for (let k = 1; k < n; k++) {
     const y = new Date(c.days[k]).getUTCFullYear();
     if (y !== yCur) {
-      yearly.push({ year: yCur, returnPct: (c.values[k - 1] / yStartV - 1) * 100 });
+      yearly.push({ year: yCur, returnPct: yStartV > 0 ? (c.values[k - 1] / yStartV - 1) * 100 : NaN });
       yStartV = c.values[k - 1];
       yCur = y;
     }
   }
-  yearly.push({ year: yCur, returnPct: (vN / yStartV - 1) * 100 });
+  yearly.push({ year: yCur, returnPct: yStartV > 0 ? (vN / yStartV - 1) * 100 : NaN }); // NaN once the wallet is gone
 
   const m: Metrics & E = {
     start: new Date(c.days[0]).toISOString().slice(0, 10),
@@ -124,7 +124,7 @@ export function metrics<E extends object>(c: Curve, extra: E = {} as E) {
     maxDrawdownPct: -maxDd * 100,
     lowestValue: lowest,
     yearly,
-    worstYearPct: Math.min(...yearly.map((y) => y.returnPct)),
+    worstYearPct: Math.min(...yearly.map((y) => y.returnPct).filter((x) => !Number.isNaN(x))),
     ...extra,
   };
   return m;
