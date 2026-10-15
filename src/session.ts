@@ -23,6 +23,7 @@ export class LiveSession {
     const saved = this.storage.loadState();
     this.broker = new PaperBroker(config, saved?.broker);
     this.lastCandleTime = saved?.lastCandleTime ?? 0;
+    this.lastAction = saved?.lastAction ?? "";
     console.log(`Paper bot: ${config.symbol} @ ${config.interval}. ${saved ? "Resuming saved session." : "New session."}`);
   }
 
@@ -30,6 +31,7 @@ export class LiveSession {
     const candles = await fetchRecentCandles(config.symbol, config.interval, 200);
     const latest = candles[candles.length - 1];
     this.lastPrice = latest.close;
+    if (latest.openTime <= this.lastCandleTime) console.log(`[${stamp()}] No new candle yet (BTC $${latest.close.toFixed(2)}).`);
 
     // First run: start from the latest candle instead of trading on old history.
     if (this.lastCandleTime === 0) {
@@ -83,7 +85,7 @@ export class LiveSession {
   }
 
   save(status = "ok") {
-    this.storage.saveState(this.broker.state, this.lastCandleTime);
+    this.storage.saveState(this.broker.state, this.lastCandleTime, this.lastAction);
     writeDashboardJson("live", this.broker.state.trades, this.storage.readEquity(), this.broker.state.totalTdsInr, config, {
       source: lastSource,
       inPosition: this.broker.inPosition,

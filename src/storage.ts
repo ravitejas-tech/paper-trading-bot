@@ -44,14 +44,14 @@ export class Storage {
     equity.forEach((p) => this.logEquity(p, prefix));
   }
 
-  loadState(): { broker: BrokerState; lastCandleTime: number } | null {
+  loadState(): { broker: BrokerState; lastCandleTime: number; lastAction?: string } | null {
     const f = this.file("state.json");
     return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : null;
   }
 
-  saveState(broker: BrokerState, lastCandleTime: number) {
+  saveState(broker: BrokerState, lastCandleTime: number, lastAction = "") {
     const f = this.file("state.json");
-    fs.writeFileSync(f + ".tmp", JSON.stringify({ broker, lastCandleTime }, null, 2));
+    fs.writeFileSync(f + ".tmp", JSON.stringify({ broker, lastCandleTime, lastAction }, null, 2));
     fs.renameSync(f + ".tmp", f);
   }
 
