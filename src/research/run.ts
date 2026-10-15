@@ -5,9 +5,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
 import { fetchHistory } from "../market.js";
-import { Curve, DAY, dayKey, metrics, rebase, toDaily, walkForward, weekly } from "./analyze.js";
+import { choosePicks, Curve, Metrics, RollingStats, DAY, dayKey, metrics, rollingStats, toDaily, weekly } from "./analyze.js";
 import { currentBot, rotation, SINGLE_COIN_FAMILIES, SingleCoinFamily } from "./families.js";
-import { Bar, Costs, simulate, SimResult } from "./sim.js";
+import { Bar, Costs, Decider, simulate, SimResult } from "./sim.js";
 
 const COINS: [string, string][] = [
   ["BTCUSDT", "BTC"],
@@ -57,56 +57,72 @@ interface Row {
   why: string;
   settings: string;
   picks: { year: number; label: string }[];
-  metrics: ReturnType<typeof metrics> & { tradesPerYear: number; inMarketPct: number };
+  metrics: Metrics & RollingStats & { tradesPerYear: number; inMarketPct: number };
   hindsight?: { label: string; multiple: number; cagrPct: number; maxDrawdownPct: number };
   curve: [number, number][];
 }
 
-/** Run one family (all its settings) and evaluate it honestly from `testFrom`. */
-function evaluateFamily(
-  fam: { id: string; name: string; why: string; params: any[]; label: (p: any) => string },
-  sims: SimResult[],
-  testFrom: number,
-): Row {
-  const curves = sims.map((s) => toDaily(s.times, s.values));
+/** Daily curve of a simulation from `startAt`, beginning with the untouched starting amount. */
+function fromStart(sim: SimResult, startAt: number): Curve {
+  let lo = 0, hi = sim.times.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sim.times[mid] < startAt) lo = mid + 1; else hi = mid; }
+  const days = [dayKey(startAt) - DAY], values = [START];
+  for (let i = lo; i < sim.times.length; i++) {
+    const d = dayKey(sim.times[i]);
+    if (d === days[days.length - 1]) values[values.length - 1] = sim.values[i];
+    else { days.push(d); values.push(sim.values[i]); }
+  }
+  return { days, values };
+}
+
+type Fam = { id: string; name: string; why: string; params: any[]; label: (p: any) => string };
+
+/**
+ * Evaluate one rule honestly from `testFrom`: settings re-picked each year from past data only,
+ * one continuous simulation (so tax and TDS are exact), plus a fresh simulation for every
+ * weekly start date to answer "what if I had started then?".
+ */
+function evaluateFamily(fam: Fam, assets: (Bar | null)[][], times: number[], deciders: Decider[], testFrom: number): Row {
   const labels = fam.params.map((p) => fam.label(p));
+  const lastDay = dayKey(times[times.length - 1]);
+  let decider: Decider = deciders[0];
+  let picks: { year: number; label: string }[] = [];
+  let hindsight: Row["hindsight"];
 
-  let curve: Curve, picks: { year: number; label: string }[] = [], hindsight: Row["hindsight"];
-  let entries = 0, heldDays = 0, totalYears = 0;
+  if (deciders.length > 1) {
+    const full = deciders.map((d) => toDaily(times, simulate(assets, times, d, COSTS, START).values));
+    const ps = choosePicks(full, labels, testFrom);
+    picks = ps.map(({ year, label }) => ({ year, label }));
+    const byYear = new Map(ps.map((p) => [p.year, p.idx]));
+    decider = (i, ctx) => deciders[byYear.get(new Date(times[i]).getUTCFullYear()) ?? ps[0].idx](i, ctx);
 
-  if (sims.length === 1) {
-    curve = rebase(curves[0], testFrom, START);
-    const a = activity(sims[0], testFrom);
-    entries = a.entries; heldDays = a.heldFrac * a.years; totalYears = a.years;
-  } else {
-    const wf = walkForward(curves, labels, testFrom, START);
-    curve = wf.curve;
-    picks = wf.picks;
-    for (const p of picks) {
-      const idx = labels.indexOf(p.label);
-      if (idx < 0) continue;
-      const a = activity(sims[idx], Math.max(testFrom, Date.UTC(p.year, 0, 1)), Date.UTC(p.year + 1, 0, 1));
-      entries += a.entries; heldDays += a.heldFrac * a.years; totalYears += a.years;
-    }
     // Best settings in hindsight (cheating: chosen after seeing the whole test period).
-    let bestIdx = 0, bestM = -Infinity;
-    curves.forEach((c, i) => {
-      const r = rebase(c, testFrom, START);
-      const m = r.values[r.values.length - 1] / START;
-      if (m > bestM) { bestM = m; bestIdx = i; }
+    let best: Curve | null = null, bestIdx = 0;
+    deciders.forEach((d, idx) => {
+      const c = fromStart(simulate(assets, times, d, COSTS, START, testFrom), testFrom);
+      if (!best || c.values[c.values.length - 1] > best.values[best.values.length - 1]) { best = c; bestIdx = idx; }
     });
-    const hm = metrics(rebase(curves[bestIdx], testFrom, START));
+    const hm = metrics(best!);
     hindsight = { label: labels[bestIdx], multiple: hm.multiple, cagrPct: hm.cagrPct, maxDrawdownPct: hm.maxDrawdownPct };
   }
 
-  const m = metrics(curve);
+  const runFrom = (s: number) => fromStart(simulate(assets, times, decider, COSTS, START, s), s);
+  const mainSim = simulate(assets, times, decider, COSTS, START, testFrom);
+  const curve = fromStart(mainSim, testFrom);
+  const act = activity(mainSim, testFrom);
+  const m = metrics(curve, {
+    ...rollingStats(runFrom, testFrom, lastDay, START),
+    tradesPerYear: act.years ? act.entries / act.years : 0,
+    inMarketPct: act.heldFrac * 100,
+  });
+
   return {
     id: fam.id,
     name: fam.name,
     why: fam.why,
-    settings: sims.length === 1 ? labels[0] : "re-chosen each year from the previous 2 years",
+    settings: deciders.length === 1 ? labels[0] : "re-chosen each year from the previous 2 years",
     picks,
-    metrics: { ...m, tradesPerYear: totalYears ? entries / totalYears : 0, inMarketPct: totalYears ? (heldDays / totalYears) * 100 : 0 },
+    metrics: m,
     hindsight,
     curve: weekly(curve),
   };
@@ -129,13 +145,14 @@ async function main() {
     const byDay = new Map(daily.get(coin)!.map((b) => [b.t, b]));
     return allDays.map((d) => byDay.get(d) ?? null);
   });
-  const rotSims = rotation.params.map((l) => simulate(aligned, allDays, rotation.make(l, aligned), COSTS, START));
+  const rotDeciders = rotation.params.map((l) => rotation.make(l, aligned));
 
   // The live bot's rules on 15-minute BTC candles.
   log("Loading 15-minute BTC candles for the current bot (takes a minute)...");
   const btc15 = await loadBars("BTCUSDT", "15m", TEST_FROM - 30 * DAY);
   log(`BTC 15m: ${btc15.length} candles`);
-  const currentSim = simulate([btc15], btc15.map((b) => b.t), currentBot.make(null, btc15, fng), COSTS, START);
+  const btc15Times = btc15.map((b) => b.t);
+  const currentDecider = currentBot.make(null, btc15, fng);
 
   const coins: { coin: string; symbol: string; testFrom: string; rows: Row[] }[] = [];
   for (const [sym, coin] of COINS) {
@@ -146,11 +163,11 @@ async function main() {
 
     for (const fam of SINGLE_COIN_FAMILIES as SingleCoinFamily[]) {
       if (fam.id === "fear" && fng.size === 0) continue;
-      const sims = fam.params.map((p) => simulate([bars], times, fam.make(p, bars, fng), COSTS, START));
-      rows.push(evaluateFamily(fam, sims, testFrom));
+      const deciders = fam.params.map((p) => fam.make(p, bars, fng));
+      rows.push(evaluateFamily(fam, [bars], times, deciders, testFrom));
     }
-    rows.push(evaluateFamily({ ...rotation, name: "Rotation (strongest of 5 coins)" }, rotSims, testFrom));
-    if (coin === "BTC") rows.push(evaluateFamily(currentBot, [currentSim], testFrom));
+    rows.push(evaluateFamily({ ...rotation, name: "Rotation (strongest of 5 coins)" }, aligned, allDays, rotDeciders, testFrom));
+    if (coin === "BTC") rows.push(evaluateFamily(currentBot, [btc15], btc15Times, [currentDecider], testFrom));
 
     log(`${coin} done (test from ${new Date(testFrom).toISOString().slice(0, 10)})`);
     coins.push({ coin, symbol: sym, testFrom: new Date(testFrom).toISOString().slice(0, 10), rows });

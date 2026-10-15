@@ -2,7 +2,7 @@
 
 import { simulate, Bar, Costs } from "./sim.js";
 import { trend, cross, breakout, fear, currentBot, rotation } from "./families.js";
-import { metrics, toDaily, walkForward, rebase } from "./analyze.js";
+import { metrics, toDaily, choosePicks, rollingStats, Curve } from "./analyze.js";
 const DAY = 864e5, C: Costs = { feeRate: 0.001, slippageRate: 0.0005, tdsRate: 0.01, taxRate: 0.312 };
 let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 function series(n: number, t0: number, step: number, vol = 0.03, drift = 0.0008): Bar[] {
@@ -64,26 +64,43 @@ for (const [fam, p] of [[trend, 100], [cross, [20, 50]], [breakout, [55, 20]]] a
   check("two entries", r.entries === 2);
   check("loss not offset (value < naive net)", r.values.at(-1)! < 500 * 1.5 * (100 / 150), r.values.at(-1)!.toFixed(2));
 }
-// 5. Walk-forward picks only use the past: changing data AFTER a year doesn't change that year's pick
+// 5. Walk-forward picks only use the past: cutting off future data doesn't change past picks
 {
   const c1 = toDaily(times, simulate([bars], times, trend.make(50, bars, new Map()), C, 500).values);
   const c2 = toDaily(times, simulate([bars], times, trend.make(200, bars, new Map()), C, 500).values);
-  const wf = walkForward([c1, c2], ["50", "200"], Date.UTC(2020, 0, 1), 500);
-  const c1cut = { days: c1.days.filter(d => d < Date.UTC(2022, 0, 1)), values: c1.values.slice(0, c1.days.filter(d => d < Date.UTC(2022, 0, 1)).length) };
-  const c2cut = { days: c2.days.filter(d => d < Date.UTC(2022, 0, 1)), values: c2.values.slice(0, c2.days.filter(d => d < Date.UTC(2022, 0, 1)).length) };
-  const wf2 = walkForward([c1cut, c2cut], ["50", "200"], Date.UTC(2020, 0, 1), 500);
-  check("walk-forward picks stable under future changes", JSON.stringify(wf.picks.slice(0, 2)) === JSON.stringify(wf2.picks.slice(0, 2)), JSON.stringify(wf.picks));
-  const n = wf2.curve.values.length;
-  check("walk-forward curve identical on shared days", wf2.curve.values.every((v, i) => Math.abs(v - wf.curve.values[i]) < 1e-9), `${n} days`);
+  const cut = (c: Curve, before: number): Curve => { const k = c.days.filter((d) => d < before).length; return { days: c.days.slice(0, k), values: c.values.slice(0, k) }; };
+  const full = choosePicks([c1, c2], ["50", "200"], Date.UTC(2020, 0, 1));
+  const part = choosePicks([cut(c1, Date.UTC(2022, 0, 1)), cut(c2, Date.UTC(2022, 0, 1))], ["50", "200"], Date.UTC(2020, 0, 1));
+  check("walk-forward picks stable under future changes", JSON.stringify(full.slice(0, 2)) === JSON.stringify(part.slice(0, 2)), full.map((p) => `${p.year}:${p.label}`).join(" "));
 }
-// 6. Metrics sanity on a known curve: doubles linearly over 2 years
+// 6. Fresh start: hold from a later date matches a hand calculation from THAT date's price
+{
+  const s0 = Date.UTC(2020, 0, 1), k = bars.findIndex((b) => b.t >= s0);
+  const r = simulate([bars], times, () => 0, C, 500, s0);
+  check("no trading before start", r.values.slice(0, k).every((v) => v === 500) && r.entryTimes[0] === bars[k].t);
+  const qty = (500 * 0.999) / (bars[k].open * 1.0005);
+  const net = qty * bars.at(-1)!.close * 0.9995 * 0.999;
+  const exp = net - Math.max(0, net - 500) * 0.312;
+  check("fresh-start hold matches hand calculation", Math.abs(r.values.at(-1)! - exp) < 1e-6, `${r.values.at(-1)!.toFixed(2)} vs ${exp.toFixed(2)}`);
+}
+// 7. After tax, doubling ₹500 needs the price to rise ~2.45x (not 2x)
+{
+  const b: Bar[] = Array.from({ length: 900 }, (_, i) => { const p = 100 * Math.pow(3, i / 800); return { t: Date.UTC(2021, 0, 1) + i * DAY, open: p, high: p, low: p, close: p }; });
+  const tt = b.map((x) => x.t);
+  const st = rollingStats((s) => {
+    const r = simulate([b], tt, () => 0, C, 500, s);
+    const i0 = tt.findIndex((t) => t >= s);
+    return { days: [s - DAY, ...tt.slice(i0)], values: [500, ...r.values.slice(i0)] };
+  }, tt[0], tt.at(-1)!, 500);
+  const expDays = 800 * Math.log(2.45 / 1.0) / Math.log(3); // price must rise ~2.45x (+ costs)
+  check("doubling after tax needs ~2.45x price", st.medianDaysToDouble !== null && Math.abs(st.medianDaysToDouble - expDays) < 15, `${st.medianDaysToDouble} days vs ~${expDays.toFixed(0)}`);
+}
+// 8. Metrics sanity on a known curve: doubles smoothly over 2 years
 {
   const days = Array.from({ length: 1100 }, (_, i) => t0 + i * DAY);
   const m = metrics({ days, values: days.map((_, i) => 500 * Math.pow(2, i / 730)) });
   check("CAGR of 2x over 2y ≈ 41.4%", Math.abs(m.cagrPct - 41.42) < 0.2, m.cagrPct.toFixed(2));
-  check("median days to double = 730", m.medianDaysToDouble === 730, String(m.medianDaysToDouble));
-  check("no drawdown", m.maxDrawdownPct === 0 && m.worstDipFromStartPct === 0);
-  check("doubled within 1y = 0%", m.doubledWithin1yPct === 0);
+  check("no drawdown", m.maxDrawdownPct === 0 && m.lowestValue === 500);
 }
 console.log(ok ? "\nALL CHECKS PASSED" : "\nSOME CHECKS FAILED");
 if (!ok) process.exit(1);

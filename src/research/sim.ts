@@ -52,6 +52,7 @@ export function simulate(
   decide: Decider,
   costs: Costs,
   startCash: number,
+  startAt = -Infinity, // no trading before this time; the wallet starts fresh here
 ): SimResult {
   const { feeRate, slippageRate: slip, tdsRate, taxRate } = costs;
   let cash = startCash, holding = -1, qty = 0, costBasis = 0, entryPrice = 0;
@@ -132,7 +133,9 @@ export function simulate(
     }
     values.push(cash + pending + pos);
 
-    target = decide(i, { holding, entryPrice });
+    // Decide only once the next bar is inside the trading window.
+    const nextLive = i + 1 >= times.length || times[i + 1] >= startAt;
+    target = nextLive ? decide(i, { holding, entryPrice }) : -1;
   }
 
   return { times, values, entries, entryTimes, held, barsInMarket, taxPaid };

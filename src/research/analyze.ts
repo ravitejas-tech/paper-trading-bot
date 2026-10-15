@@ -37,46 +37,33 @@ const valueAt = (c: Curve, day: number): number => {
 };
 
 /**
- * Walk-forward: for each calendar year from `testFrom`, pick the settings that grew most over
- * the previous `trainDays` (data the rule could actually have seen), then use them for that year.
+ * Walk-forward selection: for each calendar year from `testFrom`, pick the settings that grew
+ * most over the previous `trainDays` — data the rule could actually have seen at the time.
  */
-export function walkForward(
+export function choosePicks(
   curves: Curve[],
   labels: string[],
   testFrom: number,
-  start: number,
   trainDays = 730,
-): { curve: Curve; picks: { year: number; label: string }[] } {
+): { year: number; idx: number; label: string }[] {
   const lastDay = Math.max(...curves.map((c) => c.days[c.days.length - 1]));
-  const days: number[] = [];
-  for (let d = testFrom; d <= lastDay; d += DAY) days.push(d);
-  const values: number[] = [];
-  const picks: { year: number; label: string }[] = [];
-
-  let chosen = -1, year = -1, v = start;
-  for (let k = 0; k < days.length; k++) {
-    const d = days[k];
-    const y = new Date(d).getUTCFullYear();
-    if (y !== year) {
-      year = y;
-      const trainEnd = d - DAY, trainStart = d - trainDays * DAY;
-      let best = -Infinity;
-      curves.forEach((c, idx) => {
-        const a = valueAt(c, trainStart) || c.values[0], b = valueAt(c, trainEnd);
-        if (!(a > 0) || !(b > 0) || c.days[0] > trainEnd - 365 * DAY) return; // need ≥1 year of history
-        const g = b / a;
-        if (g > best) { best = g; chosen = idx; }
-      });
-      picks.push({ year: y, label: chosen >= 0 ? labels[chosen] : "-" });
-    }
-    if (k > 0 && chosen >= 0) {
-      const c = curves[chosen];
-      const prev = valueAt(c, days[k - 1]), cur = valueAt(c, d);
-      if (prev > 0 && cur > 0) v *= cur / prev;
-    }
-    values.push(v);
+  const picks: { year: number; idx: number; label: string }[] = [];
+  let prev = -1;
+  for (let y = new Date(testFrom).getUTCFullYear(); y <= new Date(lastDay).getUTCFullYear(); y++) {
+    const yearStart = Math.max(testFrom, Date.UTC(y, 0, 1));
+    const trainEnd = yearStart - DAY, trainStart = yearStart - trainDays * DAY;
+    let best = -Infinity, chosen = prev;
+    curves.forEach((c, idx) => {
+      if (c.days[0] > trainEnd - 365 * DAY) return; // need at least a year of history
+      const a = valueAt(c, trainStart) || c.values[0], b = valueAt(c, trainEnd);
+      if (!(a > 0) || !(b > 0)) return;
+      if (b / a > best) { best = b / a; chosen = idx; }
+    });
+    if (chosen < 0) chosen = 0;
+    picks.push({ year: y, idx: chosen, label: labels[chosen] });
+    prev = chosen;
   }
-  return { curve: { days, values }, picks };
+  return picks;
 }
 
 export interface Metrics {
@@ -90,7 +77,10 @@ export interface Metrics {
   lowestValue: number;          // lowest the wallet fell to (started at `start`)
   yearly: { year: number; returnPct: number }[];
   worstYearPct: number;
-  // From many possible start dates (every 7 days):
+}
+
+/** Answers for "what if I had started on a random day?" Every start is a fresh simulation. */
+export interface RollingStats {
   rollingStarts: number;
   doubledWithin1yPct: number;   // % of start dates that reached 2x within 365 days
   doubledWithin2yPct: number;   // % of start dates (with 2y of data after) that reached 2x within 730 days
@@ -100,7 +90,7 @@ export interface Metrics {
   worstDipFromStartPct: number; // worst fall below the starting amount, over all start dates
 }
 
-export function metrics(c: Curve, extra: { entries?: number; barsInMarketPct?: number } = {}) {
+export function metrics<E extends object>(c: Curve, extra: E = {} as E) {
   const n = c.values.length;
   const v0 = c.values[0], vN = c.values[n - 1];
   const years = (c.days[n - 1] - c.days[0]) / (365.25 * DAY);
@@ -124,31 +114,7 @@ export function metrics(c: Curve, extra: { entries?: number; barsInMarketPct?: n
   }
   yearly.push({ year: yCur, returnPct: (vN / yStartV - 1) * 100 });
 
-  // Rolling start dates
-  let starts = 0, d1 = 0, d2 = 0, d2n = 0, never = 0, loss1 = 0, loss1n = 0, worstDip = 0;
-  const daysToDouble: number[] = [];
-  for (let s = 0; s + 365 < n; s += 7) {
-    starts++;
-    const vs = c.values[s];
-    let doubledAt = -1;
-    for (let k = s + 1; k < n; k++) {
-      worstDip = Math.max(worstDip, 1 - c.values[k] / vs);
-      if (doubledAt < 0 && c.values[k] >= 2 * vs) { doubledAt = k; }
-    }
-    const dd = doubledAt >= 0 ? (c.days[doubledAt] - c.days[s]) / DAY : Infinity;
-    if (doubledAt >= 0) daysToDouble.push(dd);
-    else never++;
-    if (dd <= 365) d1++;
-    if (s + 730 < n) {
-      d2n++;
-      if (dd <= 730) d2++;
-    }
-    loss1n++;
-    if (c.values[s + 365] < vs) loss1++;
-  }
-  daysToDouble.sort((a, b) => a - b);
-
-  const m: Metrics & typeof extra = {
+  const m: Metrics & E = {
     start: new Date(c.days[0]).toISOString().slice(0, 10),
     end: new Date(c.days[n - 1]).toISOString().slice(0, 10),
     years: +years.toFixed(2),
@@ -159,16 +125,39 @@ export function metrics(c: Curve, extra: { entries?: number; barsInMarketPct?: n
     lowestValue: lowest,
     yearly,
     worstYearPct: Math.min(...yearly.map((y) => y.returnPct)),
+    ...extra,
+  };
+  return m;
+}
+
+export function rollingStats(runFrom: (startAt: number) => Curve, testFrom: number, lastDay: number, start: number): RollingStats {
+  let starts = 0, d1 = 0, d2 = 0, d2n = 0, never = 0, loss1 = 0, worstDip = 0;
+  const daysToDouble: number[] = [];
+  for (let s = testFrom; s + 365 * DAY <= lastDay; s += 7 * DAY) {
+    const c = runFrom(s);
+    if (c.values.length < 2) continue;
+    starts++;
+    let doubledAt = -1;
+    for (let k = 1; k < c.values.length; k++) {
+      worstDip = Math.max(worstDip, 1 - c.values[k] / start);
+      if (doubledAt < 0 && c.values[k] >= 2 * start) doubledAt = k;
+    }
+    const dd = doubledAt >= 0 ? (c.days[doubledAt] - s) / DAY : Infinity;
+    if (doubledAt >= 0) daysToDouble.push(dd); else never++;
+    if (dd <= 365) d1++;
+    if (s + 730 * DAY <= lastDay) { d2n++; if (dd <= 730) d2++; }
+    if (valueAt(c, s + 365 * DAY) < start) loss1++;
+  }
+  daysToDouble.sort((a, b) => a - b);
+  return {
     rollingStarts: starts,
     doubledWithin1yPct: starts ? (d1 / starts) * 100 : 0,
     doubledWithin2yPct: d2n ? (d2 / d2n) * 100 : 0,
     medianDaysToDouble: daysToDouble.length ? daysToDouble[Math.floor(daysToDouble.length / 2)] : null,
     neverDoubledPct: starts ? (never / starts) * 100 : 0,
-    lossAfter1yPct: loss1n ? (loss1 / loss1n) * 100 : 0,
+    lossAfter1yPct: starts ? (loss1 / starts) * 100 : 0,
     worstDipFromStartPct: -worstDip * 100,
-    ...extra,
   };
-  return m;
 }
 
 /** Weekly points for charts: [day, value]. */
