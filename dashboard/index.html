@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
+<title>Paper Trading Bot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232a78d6'/><path d='M6 22l6-7 5 4 9-11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f5f2;
+    --surface: #fcfcfb;
+    --surface-2: #f0efeb;
+    --border: #e4e2dc;
+    --text: #0b0b0b;
+    --text-2: #52514e;
+    --text-3: #7a7974;
+    --grid: #e9e7e1;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --good: #0a7d0a;
+    --bad: #c23434;
+    --good-bg: #e6f4e6;
+    --bad-bg: #fbe9e9;
+    --warn-bg: #fdf3dc;
+    --warn-text: #7a5300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121211;
+      --surface: #1a1a19;
+      --surface-2: #242423;
+      --border: #2f2f2d;
+      --text: #f0efec;
+      --text-2: #c3c2b7;
+      --text-3: #94938b;
+      --grid: #2a2a28;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --good: #3fbf3f;
+      --bad: #ef6b6b;
+      --good-bg: #16301a;
+      --bad-bg: #3a1c1c;
+      --warn-bg: #3a2f12;
+      --warn-text: #f3c552;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #242423; --border: #2f2f2d;
+    --text: #f0efec; --text-2: #c3c2b7; --text-3: #94938b; --grid: #2a2a28;
+    --series-1: #3987e5; --series-2: #d95926; --good: #3fbf3f; --bad: #ef6b6b;
+    --good-bg: #16301a; --bad-bg: #3a1c1c; --warn-bg: #3a2f12; --warn-text: #f3c552;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    font-variant-numeric: tabular-nums;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  h1 { font-size: 20px; line-height: 1.2; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--text-2); font-size: 13px; margin-top: 3px; }
+  .badge {
+    flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 5px 9px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-text);
+  }
+
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--surface-2); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+  .tabs button {
+    appearance: none; border: 0; background: transparent; color: var(--text-2); font: inherit; font-weight: 600;
+    padding: 10px 8px; border-radius: 9px; cursor: pointer; min-height: 44px;
+  }
+  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+  .label { color: var(--text-2); font-size: 13px; }
+  .hero-value { font-size: 40px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin: 4px 0 6px; }
+  .delta { font-weight: 600; }
+  .up { color: var(--good); }
+  .down { color: var(--bad); }
+  .flat { color: var(--text-2); }
+  .verdict { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 10px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+  .verdict.good { background: var(--good-bg); color: var(--good); }
+  .verdict.bad { background: var(--bad-bg); color: var(--bad); }
+  .verdict.neutral { background: var(--surface-2); color: var(--text-2); }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; color: var(--text-2); font-size: 13px; }
+
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .chart-head h2 { font-size: 15px; margin: 0; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+  .chart { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  .chart svg { display: block; width: 100%; height: 230px; overflow: visible; }
+  .tip {
+    position: absolute; top: 0; pointer-events: none; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12); min-width: 150px; display: none; z-index: 2;
+  }
+  .tip b { display: block; font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 4px; }
+  .tip div { display: flex; justify-content: space-between; gap: 12px; }
+  .tip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .empty { color: var(--text-2); font-size: 14px; padding: 24px 4px; text-align: center; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .stat { background: var(--surface); padding: 12px; }
+  .stat .v { font-size: 18px; font-weight: 650; margin-top: 2px; }
+  .stat .n { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+  .pos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .pos .v { font-weight: 650; font-size: 16px; }
+
+  h2.section { font-size: 15px; margin: 18px 4px 8px; }
+  .trades { list-style: none; margin: 0; padding: 0; }
+  .trade { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+  .trade:first-child { border-top: 0; padding-top: 0; }
+  .side { font-size: 11px; font-weight: 700; letter-spacing: .05em; padding: 4px 7px; border-radius: 6px; grid-row: span 2; align-self: start; }
+  .side.BUY { background: color-mix(in srgb, var(--series-1) 15%, transparent); color: var(--series-1); }
+  .side.SELL { background: var(--surface-2); color: var(--text); }
+  .trade .when { font-size: 13px; color: var(--text-2); }
+  .trade .price { font-weight: 600; text-align: right; }
+  .trade .reason { font-size: 13px; color: var(--text-2); grid-column: 2; }
+  .trade .pnl { font-size: 13px; font-weight: 600; text-align: right; }
+  .more { appearance: none; width: 100%; margin-top: 10px; min-height: 44px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+
+  .alert { background: var(--warn-bg); color: var(--warn-text); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+  .notes { color: var(--text-2); font-size: 13px; }
+  .notes p { margin: 6px 0; }
+  .notes a { color: var(--series-1); }
+  footer { color: var(--text-3); font-size: 12px; text-align: center; margin-top: 18px; }
+  .theme-btn { appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 999px; font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; margin-top: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Paper Trading Bot</h1>
+      <div class="sub" id="sub">Loading…</div>
+    </div>
+    <span class="badge" title="Simulated trades only">Paper · No real money</span>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-live" aria-selected="true">Live paper</button>
+    <button role="tab" id="tab-backtest" aria-selected="false">Backtest</button>
+  </div>
+
+  <div id="alert" class="alert" hidden></div>
+
+  <section class="card" aria-live="polite">
+    <div class="label" id="hero-label">Paper wallet value</div>
+    <div class="hero-value" id="hero-value">—</div>
+    <div><span class="delta" id="hero-delta"></span> <span class="label" id="hero-since"></span></div>
+    <div id="verdict" class="verdict neutral" hidden></div>
+    <div class="meta-row" id="meta"></div>
+  </section>
+
+  <section class="card" id="position-card" hidden>
+    <div class="label" id="position-title">Open position</div>
+    <div class="pos" id="position"></div>
+  </section>
+
+  <section class="card">
+    <div class="chart-head">
+      <h2>Wallet value (₹)</h2>
+      <div class="legend">
+        <span><i style="background:var(--series-1)"></i>Bot</span>
+        <span><i style="background:var(--series-2)"></i>Buy &amp; hold</span>
+      </div>
+    </div>
+    <div class="chart" id="chart"></div>
+  </section>
+
+  <section class="grid" id="stats"></section>
+
+  <h2 class="section">Trades</h2>
+  <section class="card">
+    <ul class="trades" id="trades"></ul>
+    <button class="more" id="more" hidden>Show more</button>
+  </section>
+
+  <section class="card notes" id="notes"></section>
+
+  <footer>
+    Educational project, not financial advice. Updates every ~15 min.<br>
+    <button class="theme-btn" id="theme">Theme: auto</button>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const state = { tab: "live", data: {}, shown: 20 };
+
+  try { const t = localStorage.getItem("tab"); if (t === "backtest" || t === "live") state.tab = t; } catch {}
+  try { const th = localStorage.getItem("theme"); if (th) document.documentElement.dataset.theme = th; } catch {}
+
+  const inr = (x, d = 2) => "₹" + Number(x).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const usd = (x) => "$" + Number(x).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const pct = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toFixed(2) + "%";
+  const signedInr = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + inr(Math.abs(x));
+  const cls = (x) => (x > 0.004 ? "up" : x < -0.004 ? "down" : "flat");
+  const arrow = (x) => (x > 0.004 ? "▲ " : x < -0.004 ? "▼ " : "");
+  const fmtTime = (t, withYear) => new Date(t).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit", ...(withYear ? { year: "numeric" } : {}),
+  });
+  const ago = (iso) => {
+    const s = (Date.now() - Date.parse(iso)) / 1000;
+    if (s < 90) return "just now";
+    if (s < 3600) return Math.round(s / 60) + " min ago";
+    if (s < 86400) return Math.round(s / 3600) + " h ago";
+    return Math.round(s / 86400) + " days ago";
+  };
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  async function load(kind) {
+    try {
+      const res = await fetch(`data/${kind}.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      state.data[kind] = await res.json();
+    } catch { state.data[kind] = state.data[kind] ?? null; }
+  }
+
+  function render() {
+    const d = state.data[state.tab];
+    $("tab-live").setAttribute("aria-selected", state.tab === "live");
+    $("tab-backtest").setAttribute("aria-selected", state.tab === "backtest");
+
+    if (!d) {
+      $("sub").textContent = "Waiting for first data…";
+      $("hero-value").textContent = "—";
+      $("hero-delta").textContent = ""; $("hero-since").textContent = "";
+      $("verdict").hidden = true; $("meta").innerHTML = ""; $("position-card").hidden = true;
+      $("chart").innerHTML = `<div class="empty">No ${state.tab === "live" ? "live" : "backtest"} data yet. The bot runs every 15 minutes; check back shortly.</div>`;
+      $("stats").innerHTML = ""; $("trades").innerHTML = `<li class="empty">No trades yet.</li>`; $("more").hidden = true;
+      $("notes").innerHTML = ""; $("alert").hidden = true;
+      return;
+    }
+
+    const s = d.stats, set = d.settings;
+    $("sub").textContent = `${set.symbol} · ${set.interval} candles · updated ${ago(d.updatedAt)}`;
+
+    const failed = d.status && d.status !== "ok" && d.kind === "live";
+    $("alert").hidden = !failed;
+    if (failed) $("alert").textContent = d.status + " — it will retry on the next run.";
+
+    // Hero
+    $("hero-label").textContent = d.kind === "live" ? "Paper wallet value" : "Backtest ending value";
+    $("hero-value").textContent = inr(s.endInr);
+    const delta = s.endInr - s.startInr;
+    $("hero-delta").className = "delta " + cls(delta);
+    $("hero-delta").textContent = `${arrow(delta)}${signedInr(delta)} (${pct(s.returnPct)})`;
+    $("hero-since").textContent = d.kind === "live"
+      ? (s.periodStart ? `since ${fmtTime(s.periodStart)}` : "")
+      : `over ${esc(d.status || "the test period")}`;
+
+    const enough = d.equity.length > 1;
+    const v = $("verdict");
+    v.hidden = !enough;
+    if (enough) {
+      const gap = s.returnPct - s.holdReturnPct;
+      v.className = "verdict " + (gap > 0 ? "good" : "bad");
+      v.textContent = (gap > 0 ? "✓ Beating" : "✗ Behind") + ` buy & hold (${pct(s.holdReturnPct)}) by ${Math.abs(gap).toFixed(2)} pts`;
+    }
+
+    $("meta").innerHTML = [
+      d.lastPriceUsdt ? `BTC ${usd(d.lastPriceUsdt)}` : "",
+      d.lastAction ? `Last: ${esc(d.lastAction)}` : "",
+    ].filter(Boolean).map((x) => `<span>${x}</span>`).join("");
+
+    // Position (live only)
+    const pc = $("position-card");
+    pc.hidden = d.kind !== "live";
+    if (d.kind === "live") {
+      if (d.inPosition && d.entryPriceUsdt && d.lastPriceUsdt) {
+        const ch = (d.lastPriceUsdt / d.entryPriceUsdt - 1) * 100;
+        $("position-title").textContent = "Open position";
+        $("position").innerHTML = `
+          <div><div class="label">Bought at</div><div class="v">${usd(d.entryPriceUsdt)}</div></div>
+          <div><div class="label">Now</div><div class="v">${usd(d.lastPriceUsdt)}</div></div>
+          <div><div class="label">Change</div><div class="v ${cls(ch)}">${arrow(ch)}${pct(ch)}</div></div>`;
+      } else {
+        $("position-title").textContent = "No open position";
+        $("position").innerHTML = `<div style="grid-column:1/-1" class="label">Holding cash, waiting for a buy signal.</div>`;
+      }
+    }
+
+    drawChart(d);
+
+    // Stats
+    const tile = (label, value, note, c = "") =>
+      `<div class="stat"><div class="label">${label}</div><div class="v ${c}">${value}</div>${note ? `<div class="n">${note}</div>` : ""}</div>`;
+    $("stats").innerHTML = [
+      tile("Completed trades", s.completedTrades),
+      tile("Win rate", s.completedTrades ? s.winRatePct.toFixed(1) + "%" : "—"),
+      tile("Avg win", s.avgWinInr ? signedInr(s.avgWinInr) : "—", "", cls(s.avgWinInr)),
+      tile("Avg loss", s.avgLossInr ? signedInr(s.avgLossInr) : "—", "", cls(s.avgLossInr)),
+      tile("Worst drop", pct(s.maxDrawdownPct), "max drawdown", cls(s.maxDrawdownPct)),
+      tile("Fees paid", inr(s.feesInr)),
+      tile("TDS locked", inr(s.tdsInr), "1% of each sale, refundable at tax time"),
+      tile("After tax", inr(s.netAfterTaxInr), `${pct(s.netAfterTaxPct)} · est. tax ${inr(s.estTaxInr)}`, cls(s.netAfterTaxPct)),
+    ].join("");
+
+    renderTrades(d);
+
+    $("notes").innerHTML = `
+      <p><b>Strategy:</b> ${esc(set.strategy)}, stop-loss ${set.stopLossPct}%, take-profit ${set.takeProfitPct}%.</p>
+      <p><b>Simulation:</b> starts with ${inr(set.startingCapitalInr, 0)}; 0.1% fee and 0.05% slippage per trade; 1% TDS on sales; 30% + cess tax on winning trades. USDT converted at ₹${set.usdtToInr}.</p>
+      <p><b>Data:</b> ${esc(d.source || "—")}. ${d.kind === "backtest" ? "Backtest re-runs daily on the latest history." : ""}</p>
+      <p><b>Raw data:</b> <a href="data/${d.kind === "live" ? "trades" : "backtest_trades"}.csv">trades.csv</a> · <a href="data/${d.kind === "live" ? "equity" : "backtest_equity"}.csv">equity.csv</a> (opens in Google Sheets or Excel)</p>
+      <p>Only consider real money if the bot beats buy &amp; hold after tax for months, in both the backtest and live paper trading.</p>`;
+  }
+
+  function renderTrades(d) {
+    const list = d.trades.slice(0, state.shown);
+    $("trades").innerHTML = list.length ? list.map((t) => `
+      <li class="trade">
+        <span class="side ${t.side}">${t.side}</span>
+        <span class="when">${fmtTime(t.time)}</span>
+        <span class="price">${usd(t.priceUsdt)}</span>
+        <span class="reason">${esc(t.reason)}</span>
+        <span class="pnl ${t.pnlInr === null ? "flat" : cls(t.pnlInr)}">${t.pnlInr === null ? "spent " + inr(t.valueInr) : signedInr(t.pnlInr)}</span>
+      </li>`).join("") : `<li class="empty">No trades yet. The bot only buys on a clear signal.</li>`;
+    $("more").hidden = d.trades.length <= state.shown;
+  }
+
+  // ---- Chart: bot value vs buy & hold, with touch/mouse crosshair ----
+  function drawChart(d) {
+    const el = $("chart");
+    const pts = d.equity; // [t, price, equity]
+    if (pts.length < 2) {
+      el.innerHTML = `<div class="empty">${d.kind === "live"
+        ? "The bot just started. The chart fills in as each 15-minute candle closes."
+        : "Not enough data."}</div>`;
+      return;
+    }
+    const start = d.settings.startingCapitalInr, p0 = pts[0][1];
+    const rows = pts.map(([t, p, e]) => ({ t, p, bot: e, hold: start * (p / p0) }));
+
+    const W = Math.max(280, el.clientWidth), H = 230, padL = 52, padR = 8, padT = 10, padB = 26;
+    const tMin = rows[0].t, tMax = rows[rows.length - 1].t;
+    let yMin = Math.min(start, ...rows.map((r) => Math.min(r.bot, r.hold)));
+    let yMax = Math.max(start, ...rows.map((r) => Math.max(r.bot, r.hold)));
+    const pad = (yMax - yMin) * 0.08 || 5; yMin -= pad; yMax += pad;
+    const x = (t) => padL + ((t - tMin) / (tMax - tMin || 1)) * (W - padL - padR);
+    const y = (v) => padT + (1 - (v - yMin) / (yMax - yMin)) * (H - padT - padB);
+
+    // nice y ticks
+    const span = yMax - yMin, raw = span / 4, mag = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+    const ticks = []; for (let v = Math.ceil(yMin / step) * step; v <= yMax; v += step) ticks.push(v);
+    const tickDec = step < 1 ? 2 : 0;
+
+    const days = (tMax - tMin) / 864e5;
+    const xFmt = (t) => new Date(t).toLocaleString("en-IN", days > 2
+      ? { timeZone: "Asia/Kolkata", day: "numeric", month: "short" }
+      : { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
+    const xTicks = [0, 1, 2, 3].map((i) => tMin + (i / 3) * (tMax - tMin));
+
+    const path = (key) => rows.map((r, i) => `${i ? "L" : "M"}${x(r.t).toFixed(1)},${y(r[key]).toFixed(1)}`).join("");
+
+    el.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bot wallet value versus buy and hold, in rupees">
+        ${ticks.map((v) => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/>
+          <text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--text-3)">${inr(v, tickDec)}</text>`).join("")}
+        <line x1="${padL}" x2="${W - padR}" y1="${y(start)}" y2="${y(start)}" stroke="var(--text-3)" stroke-dasharray="3 4" stroke-width="1"/>
+        ${xTicks.map((t, i) => `<text x="${x(t)}" y="${H - 6}" font-size="11" fill="var(--text-3)" text-anchor="${i === 0 ? "start" : i === 3 ? "end" : "middle"}">${xFmt(t)}</text>`).join("")}
+        <path d="${path("hold")}" fill="none" stroke="var(--series-2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <path d="${path("bot")}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        <g id="xh" visibility="hidden">
+          <line id="xh-line" y1="${padT}" y2="${H - padB}" stroke="var(--text-3)" stroke-width="1"/>
+          <circle id="xh-hold" r="4.5" fill="var(--series-2)" stroke="var(--surface)" stroke-width="2"/>
+          <circle id="xh-bot" r="4.5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/>
+        </g>
+        <rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent" id="hit"/>
+      </svg>
+      <div class="tip" id="tip"></div>`;
+
+    const svg = el.querySelector("svg"), tip = $("tip"), xh = $("xh");
+    const show = (clientX) => {
+      const r = svg.getBoundingClientRect();
+      const px = ((clientX - r.left) / r.width) * W;
+      const t = tMin + ((px - padL) / (W - padL - padR)) * (tMax - tMin);
+      let lo = 0, hi = rows.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; (rows[m].t < t ? (lo = m) : (hi = m)); }
+      const row = Math.abs(rows[lo].t - t) < Math.abs(rows[hi].t - t) ? rows[lo] : rows[hi];
+      const cx = x(row.t);
+      xh.setAttribute("visibility", "visible");
+      $("xh-line").setAttribute("x1", cx); $("xh-line").setAttribute("x2", cx);
+      $("xh-bot").setAttribute("cx", cx); $("xh-bot").setAttribute("cy", y(row.bot));
+      $("xh-hold").setAttribute("cx", cx); $("xh-hold").setAttribute("cy", y(row.hold));
+      tip.innerHTML = `<b>${fmtTime(row.t, days > 300)}</b>
+        <div><span><i style="background:var(--series-1)"></i>Bot</span><span>${inr(row.bot)}</span></div>
+        <div><span><i style="background:var(--series-2)"></i>Buy &amp; hold</span><span>${inr(row.hold)}</span></div>
+        <div><span style="color:var(--text-2)">BTC price</span><span>${usd(row.p)}</span></div>`;
+      tip.style.display = "block";
+      const scale = r.width / W, tw = tip.offsetWidth;
+      let left = cx * scale + 12;
+      if (left + tw > r.width) left = cx * scale - tw - 12;
+      tip.style.left = Math.max(0, left) + "px";
+    };
+    const hide = () => { xh.setAttribute("visibility", "hidden"); tip.style.display = "none"; };
+    svg.addEventListener("pointermove", (e) => show(e.clientX));
+    svg.addEventListener("pointerdown", (e) => show(e.clientX));
+    svg.addEventListener("pointerleave", hide);
+    svg.addEventListener("touchend", () => setTimeout(hide, 1800), { passive: true });
+  }
+
+  // ---- Events ----
+  const switchTab = (t) => { state.tab = t; state.shown = 20; try { localStorage.setItem("tab", t); } catch {} render(); };
+  $("tab-live").onclick = () => switchTab("live");
+  $("tab-backtest").onclick = () => switchTab("backtest");
+  $("more").onclick = () => { state.shown += 30; renderTrades(state.data[state.tab]); };
+
+  const themes = ["auto", "light", "dark"];
+  const themeLabel = () => { $("theme").textContent = "Theme: " + (document.documentElement.dataset.theme || "auto"); };
+  $("theme").onclick = () => {
+    const cur = document.documentElement.dataset.theme || "auto";
+    const next = themes[(themes.indexOf(cur) + 1) % 3];
+    if (next === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = next;
+    try { next === "auto" ? localStorage.removeItem("theme") : localStorage.setItem("theme", next); } catch {}
+    themeLabel(); render();
+  };
+  themeLabel();
+
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => state.data[state.tab] && drawChart(state.data[state.tab]), 150); });
+
+  async function refresh() {
+    await Promise.all([load("live"), load("backtest")]);
+    if (!state.data.live && state.data.backtest && state.tab === "live" && !state._autoSwitched) { state._autoSwitched = true; state.tab = "backtest"; }
+    render();
+  }
+  refresh();
+  setInterval(refresh, 60_000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+})();
+</script>
+</body>
+</html>

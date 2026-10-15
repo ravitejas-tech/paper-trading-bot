@@ -1,0 +1,93 @@
+# Runs the paper-trading bot every 15 minutes on GitHub's servers (free for public repos),
+# saves its data to the `bot-data` branch, and publishes the mobile dashboard to GitHub Pages.
+
+name: Paper bot
+
+on:
+  schedule:
+    - cron: "3-59/15 * * * *"   # :03, :18, :33, :48, just after each 15-minute candle closes
+  workflow_dispatch:            # "Run workflow" button in the Actions tab
+  push:
+    branches: [main]
+
+permissions:
+  contents: write   # push bot data to the bot-data branch
+  pages: write
+  id-token: write
+
+concurrency:
+  group: paper-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Load saved bot data
+        run: |
+          git config user.name "paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth 1 origin bot-data; then
+            git worktree add --detach botdata FETCH_HEAD
+          else
+            echo "No saved data yet, starting a new session."
+            git worktree add --orphan -b bot-data botdata
+          fi
+
+      - name: Paper-trade one step
+        continue-on-error: true
+        env:
+          DATA_DIR: botdata/state
+          SITE_DATA_DIR: botdata/site-data
+        run: npm run tick
+
+      - name: Refresh backtest (daily, or after a code change)
+        continue-on-error: true
+        env:
+          DATA_DIR: botdata/state
+          SITE_DATA_DIR: botdata/site-data
+        run: |
+          stale=$(node -e '
+            try { const j = require("./botdata/site-data/backtest.json");
+                  console.log(Date.now() - Date.parse(j.updatedAt) > 23.5 * 3600e3 ? 1 : 0) }
+            catch { console.log(1) }')
+          if [ "$stale" = "1" ] || [ "${{ github.event_name }}" != "schedule" ]; then
+            npm run backtest
+          else
+            echo "Backtest is fresh, skipping."
+          fi
+
+      - name: Save bot data
+        working-directory: botdata
+        run: |
+          git add -A
+          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
+          git commit -q -m "Bot update $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push origin HEAD:refs/heads/bot-data
+
+      - name: Build dashboard
+        run: |
+          mkdir -p _site/data
+          cp dashboard/index.html _site/
+          cp botdata/site-data/*.json _site/data/ 2>/dev/null || true
+          cp botdata/state/*.csv _site/data/ 2>/dev/null || true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
