@@ -7,5 +7,6 @@
     "totalTdsInr": 0,
     "trades": []
   },
-  "lastCandleTime": 1792083600000
+  "lastCandleTime": 1792083600000,
+  "lastAction": ""
 }
