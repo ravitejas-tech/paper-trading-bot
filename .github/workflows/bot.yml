@@ -5,7 +5,7 @@ name: Paper bot
 
 on:
   schedule:
-    - cron: "3-59/15 * * * *"   # :03, :18, :33, :48, just after each 15-minute candle closes
+    - cron: "3,18,33,48 * * * *"   # just after each 15-minute candle closes
   workflow_dispatch:            # "Run workflow" button in the Actions tab
   push:
     branches: [main]
