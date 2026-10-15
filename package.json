@@ -9,6 +9,8 @@
     "live": "tsx src/live.ts",
     "tick": "tsx src/tick.ts",
     "report": "tsx src/report.ts",
+    "research": "tsx src/research/run.ts",
+    "verify": "tsx src/research/verify.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

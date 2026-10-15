@@ -22,7 +22,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -68,6 +68,23 @@ jobs:
             npm run backtest
           else
             echo "Backtest is fresh, skipping."
+          fi
+
+      - name: Refresh research (weekly, or after a code change)
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          DATA_DIR: botdata/state
+          SITE_DATA_DIR: botdata/site-data
+        run: |
+          stale=$(node -e '
+            try { const j = require("./botdata/site-data/research.json");
+                  console.log(Date.now() - Date.parse(j.updatedAt) > 6.5 * 86400e3 ? 1 : 0) }
+            catch { console.log(1) }')
+          if [ "$stale" = "1" ] || [ "${{ github.event_name }}" != "schedule" ]; then
+            npm run research
+          else
+            echo "Research is fresh, skipping."
           fi
 
       - name: Save bot data

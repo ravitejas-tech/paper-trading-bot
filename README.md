@@ -25,6 +25,28 @@ From your phone you can:
 
 > GitHub's 15-minute schedule is best effort; runs can be a few minutes late. Candles the bot missed by more than an hour are recorded but never traded, since it couldn't have acted on them in real life. GitHub pauses schedules in repos with no activity for 60 days; if that happens, re-enable the workflow in the Actions tab.
 
+## Research tab: which rules actually work?
+
+`npm run research` (run weekly on GitHub) tests several rules on real daily prices since 2020 for BTC, ETH, BNB, SOL and XRP, plus the live bot's own rules on 15-minute BTC candles:
+
+| Rule | Idea |
+|---|---|
+| Buy & hold | Benchmark: buy once, never sell |
+| Trend filter | Hold only while price is above its N-day average |
+| Average crossover | Hold while a fast average is above a slow one |
+| Breakout | Buy new N-day highs, sell new M-day lows |
+| Fear & Greed | Buy when the market mood index shows fear, sell on greed |
+| Rotation | Weekly, hold whichever of the 5 coins is strongest |
+| Your current bot | The live bot's rules |
+
+How it stays honest:
+- **No peeking:** decisions use a candle's close and trade at the next candle's open.
+- **Walk-forward:** settings are re-chosen each year using only the previous 2 years. The best-in-hindsight settings are shown separately so you can see how much overfitting flatters results.
+- **All costs:** fees, slippage, 1% TDS (refunded yearly), 30% + cess tax on each winning trade with no loss offset. Values assume you sold everything and paid the tax.
+- **Your questions answered per rule:** what ₹500 became, its lowest point, the worst drop, how often it doubled within a year (across hundreds of start dates), and the typical wait to double.
+
+`npm run verify` runs the engine's correctness checks: no lookahead, tax/TDS math against hand calculations, and walk-forward picks that never use future data.
+
 ## Run it on a computer instead (optional)
 
 Needs Node.js 18+.

@@ -140,6 +140,38 @@
   footer { color: var(--text-3); font-size: 12px; text-align: center; margin-top: 18px; }
   .theme-btn { appearance: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 999px; font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; margin-top: 8px; }
   [hidden] { display: none !important; }
+  .tabs.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* Research */
+  .intro { font-size: 14px; color: var(--text-2); }
+  .intro b { color: var(--text); }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { appearance: none; flex: none; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 999px; min-height: 40px; cursor: pointer; }
+  .chip[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .rule { display: block; cursor: pointer; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 10px; }
+  .rule[aria-expanded="true"] { border-color: var(--series-1); box-shadow: 0 0 0 1px var(--series-1) inset; }
+  .rule.is-hold { background: var(--surface-2); }
+  .rule-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .rule-name { font-weight: 650; font-size: 15px; }
+  .rank { color: var(--text-3); font-size: 13px; font-weight: 600; margin-right: 6px; }
+  .tag { flex: none; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 6px; }
+  .tag.good { background: var(--good-bg); color: var(--good); }
+  .tag.bad { background: var(--bad-bg); color: var(--bad); }
+  .tag.neutral { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+  .big { font-size: 24px; font-weight: 700; margin: 6px 0 2px; letter-spacing: -0.01em; }
+  .big small { font-size: 14px; font-weight: 600; }
+  .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+  .mini .label { font-size: 12px; }
+  .mini .v { font-weight: 650; font-size: 15px; }
+  .detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-2); }
+  .detail p { margin: 0 0 8px; }
+  .years { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .years span { font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: 6px; background: var(--surface-2); }
+  .sum-row { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .sum-row:first-of-type { border-top: 0; padding-top: 4px; }
+  .sum-row .label { font-size: 12px; }
+  .score { text-align: right; flex: none; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -152,11 +184,13 @@
     <span class="badge" title="Simulated trades only">Paper · No real money</span>
   </header>
 
-  <div class="tabs" role="tablist">
-    <button role="tab" id="tab-live" aria-selected="true">Live paper</button>
+  <div class="tabs three" role="tablist">
+    <button role="tab" id="tab-live" aria-selected="true">Live</button>
     <button role="tab" id="tab-backtest" aria-selected="false">Backtest</button>
+    <button role="tab" id="tab-research" aria-selected="false">Research</button>
   </div>
 
+  <div id="view-main">
   <div id="alert" class="alert" hidden></div>
 
   <section class="card" aria-live="polite">
@@ -192,6 +226,28 @@
   </section>
 
   <section class="card notes" id="notes"></section>
+  </div>
+
+  <div id="view-research" hidden>
+    <section class="card intro" id="r-intro">Loading research…</section>
+    <div class="chips" id="r-coins" role="group" aria-label="Coin"></div>
+    <section class="card">
+      <div class="chart-head">
+        <h2 id="r-chart-title">₹500 over time</h2>
+        <div class="legend">
+          <span><i style="background:var(--series-1)"></i><span id="r-legend-rule">Rule</span></span>
+          <span><i style="background:var(--series-2)"></i>Buy &amp; hold</span>
+        </div>
+      </div>
+      <div class="chart" id="r-chart"></div>
+      <div class="label" style="font-size:12px;margin-top:6px">Log scale: equal heights mean equal % moves. Tap a rule below to compare it.</div>
+    </section>
+    <h2 class="section">Rules ranked by what ₹500 became</h2>
+    <div id="r-rules"></div>
+    <h2 class="section">Across all 5 coins</h2>
+    <section class="card" id="r-summary"></section>
+    <section class="card notes" id="r-notes"></section>
+  </div>
 
   <footer>
     Educational project, not financial advice. Updates every ~15 min.<br>
@@ -202,9 +258,10 @@
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const state = { tab: "live", data: {}, shown: 20 };
+  const state = { tab: "live", data: {}, shown: 20, coin: "BTC", rule: null, open: null };
 
-  try { const t = localStorage.getItem("tab"); if (t === "backtest" || t === "live") state.tab = t; } catch {}
+  try { const t = localStorage.getItem("tab"); if (["live", "backtest", "research"].includes(t)) state.tab = t; } catch {}
+  try { const c = localStorage.getItem("coin"); if (c) state.coin = c; } catch {}
   try { const th = localStorage.getItem("theme"); if (th) document.documentElement.dataset.theme = th; } catch {}
 
   const inr = (x, d = 2) => "₹" + Number(x).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -234,9 +291,11 @@
   }
 
   function render() {
+    ["live", "backtest", "research"].forEach((t) => $("tab-" + t).setAttribute("aria-selected", state.tab === t));
+    $("view-main").hidden = state.tab === "research";
+    $("view-research").hidden = state.tab !== "research";
+    if (state.tab === "research") return renderResearch();
     const d = state.data[state.tab];
-    $("tab-live").setAttribute("aria-selected", state.tab === "live");
-    $("tab-backtest").setAttribute("aria-selected", state.tab === "backtest");
 
     if (!d) {
       $("sub").textContent = "Waiting for first data…";
@@ -418,10 +477,156 @@
     svg.addEventListener("touchend", () => setTimeout(hide, 1800), { passive: true });
   }
 
+  // ---- Research tab ----
+  const money = (x) => "₹" + Math.round(x).toLocaleString("en-IN");
+  const pct0 = (x) => (x > 0 ? "+" : x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-IN", { maximumFractionDigits: 0 }) + "%";
+  const waitText = (d) => d == null ? "never" : d < 60 ? `${Math.round(d)} days` : d < 730 ? `~${Math.round(d / 30.4)} months` : `~${(d / 365).toFixed(1)} years`;
+
+  function renderResearch() {
+    const R = state.data.research;
+    if (!R) {
+      $("r-intro").innerHTML = "Research results aren't ready yet. They're generated on GitHub and refreshed weekly; check back in a few minutes.";
+      ["r-coins", "r-chart", "r-rules", "r-summary", "r-notes"].forEach((id) => ($(id).innerHTML = ""));
+      return;
+    }
+    $("sub").textContent = `Real prices · updated ${ago(R.updatedAt)}`;
+    if (!R.coins.some((c) => c.coin === state.coin)) state.coin = R.coins[0].coin;
+    const C = R.coins.find((c) => c.coin === state.coin);
+    const hold = C.rows.find((r) => r.id === "hold");
+    const rows = [...C.rows].sort((a, b) => b.metrics.finalValue - a.metrics.finalValue);
+    if (!state.rule || !C.rows.some((r) => r.id === state.rule)) state.rule = rows.find((r) => r.id !== "hold").id;
+
+    $("r-intro").innerHTML = `Every rule was tested on <b>real ${C.coin} prices from ${new Date(C.testFrom).toLocaleDateString("en-IN", { month: "short", year: "numeric" })} to today</b>, starting with <b>${money(R.startInr)}</b>. Fees, slippage, 1% TDS and 30% + cess tax are all included, and values assume you sold everything and paid the tax. Rules with several settings re-pick them each year using <b>only the two years before</b>, the way you'd really use them.`;
+
+    $("r-coins").innerHTML = R.coins.map((c) => `<button class="chip" aria-pressed="${c.coin === state.coin}" data-coin="${c.coin}">${c.coin}</button>`).join("");
+    $("r-coins").querySelectorAll("button").forEach((b) => (b.onclick = () => {
+      state.coin = b.dataset.coin; state.open = null; state.rule = null;
+      try { localStorage.setItem("coin", state.coin); } catch {}
+      renderResearch();
+    }));
+
+    const sel = C.rows.find((r) => r.id === state.rule);
+    $("r-legend-rule").textContent = sel.id === "hold" ? "Buy & hold" : sel.name;
+    $("r-chart-title").textContent = `${money(R.startInr)} over time`;
+    drawLogChart($("r-chart"), sel, hold);
+
+    $("r-rules").innerHTML = rows.map((r, i) => {
+      const m = r.metrics, isHold = r.id === "hold";
+      const beat = m.finalValue > hold.metrics.finalValue;
+      const tag = isHold ? `<span class="tag neutral">Benchmark</span>`
+        : beat ? `<span class="tag good">✓ Beat holding</span>` : `<span class="tag bad">✗ Below holding</span>`;
+      const open = state.open === r.id;
+      const years = m.yearly.map((y) => `<span class="${cls(y.returnPct)}">${y.year} ${pct0(y.returnPct)}</span>`).join("");
+      const picks = r.picks.length ? `<p><b>Settings it picked each year:</b> ${r.picks.map((p) => `${p.year}: ${esc(p.label)}`).join(" · ")}</p>` : "";
+      const hs = r.hindsight ? `<p><b>Overfitting check:</b> the best settings chosen <i>after</i> seeing the results (${esc(r.hindsight.label)}) would show ${money(R.startInr * r.hindsight.multiple)}. The honest walk-forward result above is what you'd really have got.</p>` : "";
+      return `
+        <div class="rule ${isHold ? "is-hold" : ""}" role="button" tabindex="0" data-id="${r.id}" aria-expanded="${open}">
+          <div class="rule-top"><span class="rule-name"><span class="rank">${i + 1}</span>${esc(r.name)}</span>${tag}</div>
+          <div class="big">${money(m.finalValue)} <small class="${cls(m.multiple - 1)}">${m.multiple >= 1 ? m.multiple.toLocaleString("en-IN", { maximumFractionDigits: m.multiple < 100 ? 1 : 0 }) + "×" : pct0((m.multiple - 1) * 100)}</small></div>
+          <div class="mini">
+            <div><div class="label">Lowest point</div><div class="v ${m.lowestValue < R.startInr ? "down" : ""}">${money(m.lowestValue)}</div></div>
+            <div><div class="label">Worst drop</div><div class="v down">${pct0(m.maxDrawdownPct)}</div></div>
+            <div><div class="label">Trades / year</div><div class="v">${m.tradesPerYear.toFixed(1)}</div></div>
+            <div><div class="label">Doubled in 1 yr</div><div class="v">${Math.round(m.doubledWithin1yPct)}%</div></div>
+            <div><div class="label">Typical wait to 2×</div><div class="v">${waitText(m.medianDaysToDouble)}</div></div>
+            <div><div class="label">Down after 1 yr</div><div class="v">${Math.round(m.lossAfter1yPct)}%</div></div>
+          </div>
+          <div class="detail" ${open ? "" : "hidden"}>
+            <p>${esc(r.why)}</p>
+            <p><b>Doubled in 1 yr</b> = out of ${m.rollingStarts} possible start dates (one per week), how many had doubled within a year. <b>Down after 1 yr</b> = how many were worth less than they started a year later. ${m.neverDoubledPct > 0 ? `${Math.round(m.neverDoubledPct)}% of start dates never doubled by today.` : ""}</p>
+            <p><b>Worst case if you started on the unluckiest day:</b> your money fell ${pct0(m.worstDipFromStartPct)} below what you put in. In the market ${Math.round(m.inMarketPct)}% of the time.</p>
+            <div class="years">${years}</div>
+            ${picks}${hs}
+          </div>
+        </div>`;
+    }).join("");
+    $("r-rules").querySelectorAll(".rule").forEach((b) => {
+      const act = () => {
+        const id = b.dataset.id;
+        state.open = state.open === id ? null : id;
+        state.rule = id;
+        renderResearch();
+        if (state.open) $("r-chart").scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+      b.onclick = act;
+      b.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act(); } };
+    });
+
+    $("r-summary").innerHTML = `<div class="label" style="margin-bottom:6px">A rule that only works on one coin is probably luck. A real pattern should hold on most coins.</div>` +
+      R.summary.map((s) => `
+        <div class="sum-row">
+          <div>${esc(s.name)}</div>
+          <div class="score">more money than holding on <b>${s.beatHold.length}/${s.testedOn.length}</b><br><span class="label">smaller worst drop on ${s.shallowerDrop.length}/${s.testedOn.length}</span></div>
+        </div>`).join("");
+
+    $("r-notes").innerHTML = `
+      <p><b>Read this before trusting any number:</b></p>
+      <p>• These are past results. 2020–2026 included one of crypto's biggest bull runs, which makes everything look better than a normal period would.</p>
+      <p>• "Lowest point" and "worst drop" are the honest part: that's what you would have had to sit through without panicking.</p>
+      <p>• Fear &amp; Greed data comes from alternative.me (daily, since 2018). Prices are from Binance's public data.</p>
+      <p>• Refreshed weekly with the latest prices. Educational, not financial advice.</p>`;
+  }
+
+  function drawLogChart(el, rule, hold) {
+    const a = rule.curve, b = hold.curve;
+    if (!a.length) { el.innerHTML = `<div class="empty">No data.</div>`; return; }
+    const W = Math.max(280, el.clientWidth || 340), H = 230, padL = 54, padR = 8, padT = 10, padB = 26;
+    const all = [...a, ...b];
+    const tMin = Math.min(...all.map((p) => p[0])), tMax = Math.max(...all.map((p) => p[0]));
+    const lo = Math.log10(Math.max(1, Math.min(...all.map((p) => p[1])) * 0.85)), hi = Math.log10(Math.max(...all.map((p) => p[1])) * 1.15);
+    const x = (t) => padL + ((t - tMin) / (tMax - tMin || 1)) * (W - padL - padR);
+    const y = (v) => padT + (1 - (Math.log10(Math.max(v, 1)) - lo) / (hi - lo || 1)) * (H - padT - padB);
+    const ticks = [];
+    for (let e = Math.floor(lo); e <= Math.ceil(hi); e++) for (const m of [1, 2, 5]) { const v = m * 10 ** e; const L = Math.log10(v); if (L >= lo && L <= hi) ticks.push(v); }
+    const shown = ticks.length > 5 ? ticks.filter((v) => /^1/.test(String(v))) : ticks;
+    const short = (v) => v >= 1e7 ? "₹" + (v / 1e7).toFixed(v % 1e7 ? 1 : 0) + "Cr" : v >= 1e5 ? "₹" + (v / 1e5).toFixed(v % 1e5 ? 1 : 0) + "L" : v >= 1000 ? "₹" + (v / 1000) + "k" : "₹" + v;
+    const yrs = []; for (let yv = new Date(tMin).getUTCFullYear() + 1; yv <= new Date(tMax).getUTCFullYear(); yv++) yrs.push(Date.UTC(yv, 0, 1));
+    const step = Math.ceil(yrs.length / 4);
+    const path = (pts) => pts.map((p, i) => `${i ? "L" : "M"}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join("");
+    const start = a[0][1];
+    el.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(rule.name)} versus buy and hold">
+        ${shown.map((v) => `<line x1="${padL}" x2="${W - padR}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${padL - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--text-3)">${short(v)}</text>`).join("")}
+        <line x1="${padL}" x2="${W - padR}" y1="${y(start)}" y2="${y(start)}" stroke="var(--text-3)" stroke-dasharray="3 4"/>
+        ${yrs.filter((_, i) => i % step === 0).map((t) => `<text x="${x(t)}" y="${H - 6}" font-size="11" fill="var(--text-3)" text-anchor="middle">${new Date(t).getUTCFullYear()}</text>`).join("")}
+        ${rule.id === "hold" ? "" : `<path d="${path(b)}" fill="none" stroke="var(--series-2)" stroke-width="2" stroke-linejoin="round"/>`}
+        <path d="${path(rule.id === "hold" ? b : a)}" fill="none" stroke="${rule.id === "hold" ? "var(--series-2)" : "var(--series-1)"}" stroke-width="2" stroke-linejoin="round"/>
+        <g id="rxh" visibility="hidden"><line id="rxh-l" y1="${padT}" y2="${H - padB}" stroke="var(--text-3)"/>
+          <circle id="rxh-b" r="4.5" fill="var(--series-2)" stroke="var(--surface)" stroke-width="2"/>
+          <circle id="rxh-a" r="4.5" fill="var(--series-1)" stroke="var(--surface)" stroke-width="2"/></g>
+        <rect x="${padL}" y="0" width="${W - padL - padR}" height="${H}" fill="transparent"/>
+      </svg><div class="tip" id="rtip"></div>`;
+    const svg = el.querySelector("svg"), tip = el.querySelector("#rtip"), g = el.querySelector("#rxh");
+    const near = (pts, t) => pts.reduce((best, p) => (Math.abs(p[0] - t) < Math.abs(best[0] - t) ? p : best), pts[0]);
+    const show = (cx0) => {
+      const r = svg.getBoundingClientRect(), px = ((cx0 - r.left) / r.width) * W;
+      const t = tMin + ((px - padL) / (W - padL - padR)) * (tMax - tMin);
+      const pa = near(a, t), pb = near(b, t), cx = x(pa[0]);
+      g.setAttribute("visibility", "visible");
+      el.querySelector("#rxh-l").setAttribute("x1", cx); el.querySelector("#rxh-l").setAttribute("x2", cx);
+      el.querySelector("#rxh-a").setAttribute("cx", cx); el.querySelector("#rxh-a").setAttribute("cy", y(pa[1]));
+      el.querySelector("#rxh-b").setAttribute("cx", x(pb[0])); el.querySelector("#rxh-b").setAttribute("cy", y(pb[1]));
+      el.querySelector("#rxh-a").style.display = rule.id === "hold" ? "none" : "";
+      tip.innerHTML = `<b>${new Date(pa[0]).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</b>
+        ${rule.id === "hold" ? "" : `<div><span><i style="background:var(--series-1)"></i>${esc(rule.name)}</span><span>${money(pa[1])}</span></div>`}
+        <div><span><i style="background:var(--series-2)"></i>Buy &amp; hold</span><span>${money(pb[1])}</span></div>`;
+      tip.style.display = "block";
+      const sc = r.width / W, tw = tip.offsetWidth;
+      let left = cx * sc + 12; if (left + tw > r.width) left = cx * sc - tw - 12;
+      tip.style.left = Math.max(0, left) + "px";
+    };
+    const hide = () => { g.setAttribute("visibility", "hidden"); tip.style.display = "none"; };
+    svg.addEventListener("pointermove", (e) => show(e.clientX));
+    svg.addEventListener("pointerdown", (e) => show(e.clientX));
+    svg.addEventListener("pointerleave", hide);
+    svg.addEventListener("touchend", () => setTimeout(hide, 1800), { passive: true });
+  }
+
   // ---- Events ----
   const switchTab = (t) => { state.tab = t; state.shown = 20; try { localStorage.setItem("tab", t); } catch {} render(); };
   $("tab-live").onclick = () => switchTab("live");
   $("tab-backtest").onclick = () => switchTab("backtest");
+  $("tab-research").onclick = () => switchTab("research");
   $("more").onclick = () => { state.shown += 30; renderTrades(state.data[state.tab]); };
 
   const themes = ["auto", "light", "dark"];
@@ -435,10 +640,10 @@
   };
   themeLabel();
 
-  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => state.data[state.tab] && drawChart(state.data[state.tab]), 150); });
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => render(), 150); });
 
   async function refresh() {
-    await Promise.all([load("live"), load("backtest")]);
+    await Promise.all([load("live"), load("backtest"), load("research")]);
     if (!state.data.live && state.data.backtest && state.tab === "live" && !state._autoSwitched) { state._autoSwitched = true; state.tab = "backtest"; }
     render();
   }
