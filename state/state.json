@@ -1,0 +1,11 @@
+{
+  "broker": {
+    "cashInr": 500,
+    "qty": 0,
+    "entryPriceUsdt": 0,
+    "entryCostInr": 0,
+    "totalTdsInr": 0,
+    "trades": []
+  },
+  "lastCandleTime": 1792083600000
+}
