@@ -2,12 +2,15 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { BrokerState, Trade } from "./paperBroker.js";
-import { EquityPoint } from "./stats.js";
+import { EquityPoint, Trade } from "./stats.js";
 
 const TRADE_COLS: (keyof Trade)[] = [
-  "time", "side", "priceUsdt", "priceInr", "qty", "valueInr", "feeInr", "tdsInr", "pnlInr", "reason", "cashAfterInr",
+  "time", "side", "priceUsdt", "priceInr", "qty", "valueInr", "feeInr", "tdsInr", "gainInr", "reason", "cashAfterInr",
 ];
+const EQUITY_COLS = ["time", "priceUsdt", "valueInr", "holdInr"];
+
+/** Files that belong to the live session (moved aside when a new session starts). */
+const LIVE_FILES = ["state.json", "trades.csv", "equity.csv", "live_report.txt"];
 
 function csvCell(v: unknown): string {
   const s = v === null || v === undefined ? "" : String(v);
@@ -34,7 +37,7 @@ export class Storage {
   }
 
   logEquity(p: EquityPoint, prefix = "") {
-    this.appendRow(`${prefix}equity.csv`, ["time", "priceUsdt", "equityInr"], [p.time, p.priceUsdt, p.equityInr.toFixed(4)]);
+    this.appendRow(`${prefix}equity.csv`, EQUITY_COLS, [p.time, p.priceUsdt, p.valueInr.toFixed(4), p.holdInr.toFixed(4)]);
   }
 
   /** Overwrite a CSV in one go (used by backtests so each run starts clean). */
@@ -44,23 +47,31 @@ export class Storage {
     equity.forEach((p) => this.logEquity(p, prefix));
   }
 
-  loadState(): { broker: BrokerState; lastCandleTime: number; lastAction?: string } | null {
+  loadState<T>(): T | null {
     const f = this.file("state.json");
     return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, "utf8")) : null;
   }
 
-  saveState(broker: BrokerState, lastCandleTime: number, lastAction = "") {
+  saveState(state: unknown) {
     const f = this.file("state.json");
-    fs.writeFileSync(f + ".tmp", JSON.stringify({ broker, lastCandleTime, lastAction }, null, 2));
+    fs.writeFileSync(f + ".tmp", JSON.stringify(state, null, 2));
     fs.renameSync(f + ".tmp", f);
+  }
+
+  /** Move the live session's files to archive/<time>/ so a new session starts clean. */
+  archive(): string {
+    const dest = path.join(this.dir, "archive", new Date().toISOString().slice(0, 16).replace(":", "-"));
+    fs.mkdirSync(dest, { recursive: true });
+    for (const n of LIVE_FILES) if (fs.existsSync(this.file(n))) fs.renameSync(this.file(n), path.join(dest, n));
+    return dest;
   }
 
   readEquity(prefix = ""): EquityPoint[] {
     const f = this.file(`${prefix}equity.csv`);
     if (!fs.existsSync(f)) return [];
     return fs.readFileSync(f, "utf8").trim().split("\n").slice(1).map((line) => {
-      const [time, price, eq] = line.split(",");
-      return { time, priceUsdt: Number(price), equityInr: Number(eq) };
+      const [time, price, value, hold] = line.split(",");
+      return { time, priceUsdt: Number(price), valueInr: Number(value), holdInr: Number(hold) };
     });
   }
 

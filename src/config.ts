@@ -1,9 +1,16 @@
 // All tunable settings live here. Change values, re-run, compare results.
 
 export const config = {
-  // Market
+  // Market (daily candles; see src/rules.ts)
   symbol: "BTCUSDT",          // e.g. ETHUSDT, SOLUSDT
-  interval: "15m",            // 1m, 5m, 15m, 1h, 4h, 1d
+
+  // Which rule the live bot and the backtest run (details in src/rules.ts):
+  //   "momentum": every Sunday, hold the coin if it's worth more than `lookbackDays` ago, else cash
+  //   "trend":    every day, hold the coin while it's above its `lookbackDays`-day average, else cash
+  //   "hold":     buy once and never sell (the benchmark)
+  // Changing the rule or symbol starts a new live session; the old one is archived.
+  strategy: "momentum" as "momentum" | "trend" | "hold",
+  lookbackDays: 365,
 
   // Paper wallet (everything is reported in INR)
   startingCapitalInr: 500,
@@ -11,26 +18,12 @@ export const config = {
 
   // Costs (be pessimistic: real results are usually worse than paper)
   feeRate: 0.001,             // 0.1% exchange fee per buy and per sell
+  slippageRate: 0.0005,       // 0.05% worse price than the market price
   tdsRate: 0.01,              // 1% TDS withheld on every sell (India, crypto)
-  slippageRate: 0.0005,       // 0.05% worse price than the candle close
-
-  // Strategy: EMA crossover filtered by RSI
-  emaFast: 9,
-  emaSlow: 21,
-  rsiPeriod: 14,
-  rsiMaxToBuy: 70,            // don't buy when already overbought
-
-  // Risk management
-  stopLossPct: 0.02,          // exit if price falls 2% below entry
-  takeProfitPct: 0.04,        // exit if price rises 4% above entry
-  positionSizePct: 1.0,       // fraction of cash used per trade (1.0 = all-in)
-
-  // Live mode: candles older than this many intervals are treated as "missed while offline"
-  // and never traded (the bot couldn't have acted on them in real life).
-  maxLateCandles: 4,
+  taxRate: 0.312,             // 30% + 4% cess on each profitable sale; losses can't offset gains
 
   // Backtest
-  backtestDays: 90,
+  backtestFrom: "2020-01-01",
 
   // Output folders (overridable for the GitHub Actions runner)
   dataDir: process.env.DATA_DIR ?? "data",
@@ -38,3 +31,10 @@ export const config = {
 };
 
 export type Config = typeof config;
+
+export const costsOf = (cfg: Config) => ({
+  feeRate: cfg.feeRate, slippageRate: cfg.slippageRate, tdsRate: cfg.tdsRate, taxRate: cfg.taxRate,
+});
+
+/** "BTCUSDT" → "BTC" */
+export const coinOf = (symbol: string) => symbol.replace(/USDT$|USDC$|USD$/, "");

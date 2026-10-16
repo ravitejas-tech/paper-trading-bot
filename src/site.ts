@@ -2,9 +2,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { Config } from "./config.js";
-import { Trade } from "./paperBroker.js";
-import { computeStats, EquityPoint } from "./stats.js";
+import { coinOf, Config } from "./config.js";
+import { Rule } from "./rules.js";
+import { EquityPoint, Stats, Trade } from "./stats.js";
 
 /** Keep charts light on phones: at most ~maxPoints, always keeping the last point. */
 function downsample<T>(xs: T[], maxPoints = 800): T[] {
@@ -23,13 +23,18 @@ export interface DashboardExtra {
   lastPriceUsdt?: number;
   lastAction?: string;
   status?: string;
+  nextCheck?: number; // ms: when the rule next makes a decision
+  triggerUsdt?: number; // the close that flips that decision (hold above it)
 }
+
+const px = (x: number) => +x.toPrecision(7);
 
 export function writeDashboardJson(
   kind: "live" | "backtest",
+  rule: Rule,
   trades: Trade[],
   equity: EquityPoint[],
-  totalTdsInr: number,
+  stats: Stats,
   cfg: Config,
   extra: DashboardExtra = {},
 ) {
@@ -39,23 +44,27 @@ export function writeDashboardJson(
     updatedAt: new Date().toISOString(),
     settings: {
       symbol: cfg.symbol,
-      interval: cfg.interval,
+      coin: coinOf(cfg.symbol),
       startingCapitalInr: cfg.startingCapitalInr,
       usdtToInr: cfg.usdtToInr,
-      strategy: `EMA ${cfg.emaFast}/${cfg.emaSlow} crossover, RSI(${cfg.rsiPeriod}) < ${cfg.rsiMaxToBuy}`,
-      stopLossPct: cfg.stopLossPct * 100,
-      takeProfitPct: cfg.takeProfitPct * 100,
+      strategy: rule.name,
+      why: rule.why,
+      when: rule.when,
+      feePct: cfg.feeRate * 100,
+      slippagePct: cfg.slippageRate * 100,
+      tdsPct: cfg.tdsRate * 100,
+      taxPct: cfg.taxRate * 100,
     },
-    stats: computeStats(trades, equity, cfg, totalTdsInr),
+    stats,
     ...extra,
-    // [time ms, price USDT, equity INR]
-    equity: downsample(equity).map((p) => [Date.parse(p.time), +p.priceUsdt.toFixed(2), +p.equityInr.toFixed(2)]),
+    // [time ms, price USDT, value INR, buy & hold INR]
+    equity: downsample(equity).map((p) => [Date.parse(p.time), px(p.priceUsdt), +p.valueInr.toFixed(2), +p.holdInr.toFixed(2)]),
     trades: trades.slice(-200).reverse().map((t) => ({
       time: t.time,
       side: t.side,
-      priceUsdt: +t.priceUsdt.toFixed(2),
+      priceUsdt: px(t.priceUsdt),
       valueInr: +t.valueInr.toFixed(2),
-      pnlInr: t.pnlInr === null ? null : +t.pnlInr.toFixed(2),
+      gainInr: t.gainInr === null ? null : +t.gainInr.toFixed(2),
       reason: t.reason,
     })),
   };

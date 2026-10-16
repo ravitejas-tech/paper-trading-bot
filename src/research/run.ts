@@ -3,10 +3,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "../config.js";
+import { config, costsOf } from "../config.js";
 import { fetchHistory } from "../market.js";
 import { choosePicks, Curve, Metrics, RollingStats, DAY, dayKey, metrics, rollingStats, toDaily, weekly } from "./analyze.js";
-import { currentBot, rotation, SINGLE_COIN_FAMILIES, SingleCoinFamily } from "./families.js";
+import { liveBot, rotation, SINGLE_COIN_FAMILIES, SingleCoinFamily } from "./families.js";
 import { Bar, Costs, Decider, simulate, SimResult } from "./sim.js";
 
 const COINS: [string, string][] = [
@@ -18,7 +18,7 @@ const COINS: [string, string][] = [
 ];
 const TEST_FROM = Date.UTC(2020, 0, 1);
 const START = config.startingCapitalInr;
-const COSTS: Costs = { feeRate: config.feeRate, slippageRate: config.slippageRate, tdsRate: config.tdsRate, taxRate: 0.312 };
+const COSTS: Costs = costsOf(config);
 
 const log = (...a: unknown[]) => console.log(`[${new Date().toISOString().slice(11, 19)}]`, ...a);
 
@@ -147,13 +147,6 @@ async function main() {
   });
   const rotDeciders = rotation.params.map((l) => rotation.make(l, aligned));
 
-  // The live bot's rules on 15-minute BTC candles.
-  log("Loading 15-minute BTC candles for the current bot (takes a minute)...");
-  const btc15 = await loadBars("BTCUSDT", "15m", TEST_FROM - 30 * DAY);
-  log(`BTC 15m: ${btc15.length} candles`);
-  const btc15Times = btc15.map((b) => b.t);
-  const currentDecider = currentBot.make(null, btc15, fng);
-
   const coins: { coin: string; symbol: string; testFrom: string; rows: Row[] }[] = [];
   for (const [sym, coin] of COINS) {
     const bars = daily.get(coin)!;
@@ -167,7 +160,7 @@ async function main() {
       rows.push(evaluateFamily(fam, [bars], times, deciders, testFrom));
     }
     rows.push(evaluateFamily({ ...rotation, name: "Rotation (strongest of 5 coins)" }, aligned, allDays, rotDeciders, testFrom));
-    if (coin === "BTC") rows.push(evaluateFamily(currentBot, [btc15], btc15Times, [currentDecider], testFrom));
+    rows.push(evaluateFamily(liveBot, [bars], times, [liveBot.make(null, bars, fng)], testFrom));
 
     log(`${coin} done (test from ${new Date(testFrom).toISOString().slice(0, 10)})`);
     coins.push({ coin, symbol: sym, testFrom: new Date(testFrom).toISOString().slice(0, 10), rows });

@@ -12,6 +12,19 @@ export interface Candle {
   closeTime: number;
 }
 
+/** A price bar as the rules and the simulator see it. */
+export interface Bar {
+  t: number; // open time, ms
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export const toBar = (c: Candle, scale = 1): Bar => ({
+  t: c.openTime, open: c.open * scale, high: c.high * scale, low: c.low * scale, close: c.close * scale,
+});
+
 const INTERVAL_MS: Record<string, number> = {
   "1m": 60_000,
   "5m": 300_000,
@@ -45,6 +58,8 @@ interface Source {
   name: string;
   /** Candles with openTime in [start, end), oldest first. */
   range(symbol: string, interval: string, start: number, end: number): Promise<Candle[]>;
+  /** Latest traded price. */
+  price(symbol: string): Promise<number>;
 }
 
 function binance(base: string): Source {
@@ -71,17 +86,22 @@ function binance(base: string): Source {
       }
       return out;
     },
+    async price(symbol) {
+      return Number(((await getJson(`${base}/api/v3/ticker/price?symbol=${symbol}`)) as { price: string }).price);
+    },
   };
 }
 
 const COINBASE_GRANULARITY: Record<string, number> = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1d": 86400 };
+
+const coinbaseProduct = (symbol: string) => symbol.replace(/USDT$|USDC$|USD$/, "") + "-USD"; // BTCUSDT -> BTC-USD
 
 const coinbase: Source = {
   name: "coinbase",
   async range(symbol, interval, start, end) {
     const gran = COINBASE_GRANULARITY[interval];
     if (!gran) throw new Error(`Coinbase has no ${interval} candles`);
-    const product = symbol.replace(/USDT$|USDC$|USD$/, "") + "-USD"; // BTCUSDT -> BTC-USD
+    const product = coinbaseProduct(symbol);
     const step = gran * 1000;
     const byTime = new Map<number, Candle>();
     for (let s = start; s < end; s += 300 * step) {
@@ -100,6 +120,9 @@ const coinbase: Source = {
     }
     return [...byTime.values()].sort((a, b) => a.openTime - b.openTime);
   },
+  async price(symbol) {
+    return Number(((await getJson(`https://api.exchange.coinbase.com/products/${coinbaseProduct(symbol)}/ticker`)) as { price: string }).price);
+  },
 };
 
 const SOURCES: Source[] = [
@@ -110,16 +133,16 @@ const SOURCES: Source[] = [
 
 let preferred = 0; // stick with whichever source worked last
 
-async function fromAnySource(fn: (s: Source) => Promise<Candle[]>): Promise<Candle[]> {
+async function fromAnySource<T>(fn: (s: Source) => Promise<T>, ok: (x: T) => boolean): Promise<T> {
   const errors: string[] = [];
   for (let k = 0; k < SOURCES.length; k++) {
     const idx = (preferred + k) % SOURCES.length;
     try {
-      const candles = await fn(SOURCES[idx]);
-      if (candles.length === 0) throw new Error("no candles returned");
+      const x = await fn(SOURCES[idx]);
+      if (!ok(x)) throw new Error("no data returned");
       preferred = idx;
       lastSource = SOURCES[idx].name;
-      return candles;
+      return x;
     } catch (err) {
       errors.push(`${SOURCES[idx].name}: ${(err as Error).message}`);
     }
@@ -131,12 +154,17 @@ async function fromAnySource(fn: (s: Source) => Promise<Candle[]>): Promise<Cand
 export async function fetchRecentCandles(symbol: string, interval: string, limit = 200): Promise<Candle[]> {
   const step = intervalToMs(interval);
   const currentOpen = Math.floor(Date.now() / step) * step;
-  return fromAnySource((s) => s.range(symbol, interval, currentOpen - limit * step, currentOpen));
+  return fromAnySource((s) => s.range(symbol, interval, currentOpen - limit * step, currentOpen), (c) => c.length > 0);
 }
 
 /** Historical closed candles over a date range. */
 export async function fetchHistory(symbol: string, interval: string, startTime: number, endTime: number): Promise<Candle[]> {
   const step = intervalToMs(interval);
   const end = Math.min(endTime, Math.floor(Date.now() / step) * step);
-  return fromAnySource((s) => s.range(symbol, interval, startTime, end));
+  return fromAnySource((s) => s.range(symbol, interval, startTime, end), (c) => c.length > 0);
+}
+
+/** Latest traded price (what a market order would fill near right now). */
+export async function fetchPrice(symbol: string): Promise<number> {
+  return fromAnySource((s) => s.price(symbol), (p) => Number.isFinite(p) && p > 0);
 }

@@ -1,11 +1,13 @@
-# Runs the paper-trading bot every 15 minutes on GitHub's servers (free for public repos),
+# Runs the paper-trading bot about every hour on GitHub's servers (free for public repos),
 # saves its data to the `bot-data` branch, and publishes the mobile dashboard to GitHub Pages.
+# The rule decides on daily candles, so a run GitHub skips or delays only means the bot acts
+# a little later, at the price then; it never misses a decision.
 
 name: Paper bot
 
 on:
   schedule:
-    - cron: "3,18,33,48 * * * *"   # just after each 15-minute candle closes
+    - cron: "7 * * * *"   # hourly; the first run after 00:00 UTC (05:30 IST) acts on the new daily candle
   workflow_dispatch:            # "Run workflow" button in the Actions tab
   push:
     branches: [main]
@@ -47,7 +49,7 @@ jobs:
             git worktree add --orphan -b bot-data botdata
           fi
 
-      - name: Paper-trade one step
+      - name: Paper-trade one check
         continue-on-error: true
         env:
           DATA_DIR: botdata/state

@@ -1,8 +1,11 @@
-// npm run verify   → correctness checks for the research engine (no lookahead, tax/TDS math, walk-forward).
+// npm run verify   → correctness checks for the engine (no lookahead, tax/TDS math, walk-forward,
+// and the live bot making the same decisions as the simulator).
 
 import { simulate, Bar, Costs } from "./sim.js";
-import { trend, cross, breakout, fear, currentBot, rotation } from "./families.js";
+import { trend, cross, breakout, rotation } from "./families.js";
 import { metrics, toDaily, choosePicks, rollingStats, Curve } from "./analyze.js";
+import { hold, latestDecision, momentum, toDecider, trend as trendRule } from "../rules.js";
+import { Wallet } from "../wallet.js";
 const DAY = 864e5, C: Costs = { feeRate: 0.001, slippageRate: 0.0005, tdsRate: 0.01, taxRate: 0.312 };
 let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 function series(n: number, t0: number, step: number, vol = 0.03, drift = 0.0008): Bar[] {
@@ -36,12 +39,12 @@ for (const [fam, p] of [[trend, 100], [cross, [20, 50]], [breakout, [55, 20]]] a
   const part = simulate(cut, times.slice(0, 1500), rotation.make(30, cut), C, 500);
   check("no lookahead: rotation", part.values.every((v, i) => Math.abs(v - full.values[i]) < 1e-9), `entries ${full.entries}`);
 }
-{ // current bot on 15m bars, no lookahead
-  const b15 = series(20000, t0, 9e5, 0.004, 0);
-  const full = simulate([b15], b15.map(b => b.t), currentBot.make(null, b15, new Map()), C, 500);
-  const cut = b15.slice(0, 12000);
-  const part = simulate([cut], cut.map(b => b.t), currentBot.make(null, cut, new Map()), C, 500);
-  check("no lookahead: current bot", part.values.every((v, i) => Math.abs(v - full.values[i]) < 1e-9), `entries ${full.entries}`);
+// Live rules (src/rules.ts), no lookahead
+for (const rule of [momentum(365), trendRule(200)]) {
+  const full = simulate([bars], times, toDecider(rule.make(bars)), C, 500);
+  const cut = bars.slice(0, 1700);
+  const part = simulate([cut], times.slice(0, 1700), toDecider(rule.make(cut)), C, 500);
+  check(`no lookahead: live rule ${rule.id}`, part.values.every((v, i) => Math.abs(v - full.values[i]) < 1e-9), `entries ${full.entries}`);
 }
 // 3. Tax/TDS: one profitable round trip, then settle on Aug 1 of next FY
 {
@@ -101,6 +104,31 @@ for (const [fam, p] of [[trend, 100], [cross, [20, 50]], [breakout, [55, 20]]] a
   const m = metrics({ days, values: days.map((_, i) => 500 * Math.pow(2, i / 730)) });
   check("CAGR of 2x over 2y ≈ 41.4%", Math.abs(m.cagrPct - 41.42) < 0.2, m.cagrPct.toFixed(2));
   check("no drawdown", m.maxDrawdownPct === 0 && m.lowestValue === 500);
+}
+// 9. The live bot makes the same decisions as the simulator, even when GitHub skips or delays runs
+for (const rule of [momentum(365), trendRule(200), hold()]) {
+  const sim = simulate([bars], times, toDecider(rule.make(bars)), C, 500, times[400]);
+  let holding = false, after = times[398], runs = 0, mismatches = 0;
+  for (let k = 399; k < bars.length - 1; k += 1 + Math.floor(rnd() * 4)) { // next run 1–4 days later
+    const seen = bars.slice(0, k + 1); // a run after day k closes sees candles up to day k
+    holding = latestDecision(rule.make(seen), seen, after, holding).hold;
+    after = seen[k].t;
+    runs++;
+    if (holding !== (sim.held[k + 1] === 1)) mismatches++;
+  }
+  check(`live matches simulator: ${rule.id}`, mismatches === 0, `${runs} runs, ${mismatches} mismatches`);
+}
+// 10. Live wallet: state survives save/load; TDS refunded and tax paid on 1 Aug after the tax year
+{
+  const w = new Wallet(C, 500);
+  w.buy(100, Date.UTC(2021, 4, 1));
+  w.sell(150, Date.UTC(2021, 5, 1));
+  const before = w.value(0);
+  const w2 = new Wallet(C, JSON.parse(JSON.stringify(w.s)));
+  check("wallet state survives save/load", Math.abs(w2.value(0) - before) < 1e-9 && w2.tdsLocked() === w.tdsLocked() && w.tdsLocked() > 0);
+  check("nothing settles before 1 Aug", w2.settle(Date.UTC(2022, 6, 31, 23)).length === 0 && w2.tdsLocked() > 0);
+  const done = w2.settle(Date.UTC(2022, 7, 1));
+  check("TDS refunded and tax paid on 1 Aug", done.length === 1 && w2.tdsLocked() === 0 && w2.s.taxPaid > 0 && Math.abs(w2.s.cash - before) < 1e-9, `cash ${w2.s.cash.toFixed(2)}, tax ${w2.s.taxPaid.toFixed(2)}`);
 }
 console.log(ok ? "\nALL CHECKS PASSED" : "\nSOME CHECKS FAILED");
 if (!ok) process.exit(1);

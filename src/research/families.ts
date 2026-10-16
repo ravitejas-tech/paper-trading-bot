@@ -2,8 +2,8 @@
 // set of settings; the walk-forward test picks settings using only past data.
 
 import { config } from "../config.js";
-import { Candle } from "../market.js";
-import { computeIndicators, decide as liveDecide } from "../strategy.js";
+import { prevMax, prevMin, sma } from "../indicators.js";
+import { ruleFromConfig, toDecider } from "../rules.js";
 import { Bar, Decider } from "./sim.js";
 
 export interface SingleCoinFamily<P = any> {
@@ -17,25 +17,6 @@ export interface SingleCoinFamily<P = any> {
 
 const DAY = 86_400_000;
 const dayKey = (t: number) => Math.floor(t / DAY) * DAY;
-
-function sma(xs: number[], n: number): number[] {
-  const out = new Array<number>(xs.length).fill(NaN);
-  let sum = 0;
-  for (let i = 0; i < xs.length; i++) {
-    sum += xs[i];
-    if (i >= n) sum -= xs[i - n];
-    if (i >= n - 1) out[i] = sum / n;
-  }
-  return out;
-}
-
-/** Highest high of the previous n bars (excluding bar i). */
-function prevMax(xs: number[], n: number): number[] {
-  return xs.map((_, i) => (i < n ? NaN : Math.max(...xs.slice(i - n, i))));
-}
-function prevMin(xs: number[], n: number): number[] {
-  return xs.map((_, i) => (i < n ? NaN : Math.min(...xs.slice(i - n, i))));
-}
 
 export const hold: SingleCoinFamily<null> = {
   id: "hold",
@@ -104,26 +85,30 @@ export const fear: SingleCoinFamily<[number, number]> = {
   },
 };
 
-/** The exact rules the live bot uses (src/strategy.ts), on 15-minute candles. */
-export const currentBot: SingleCoinFamily<null> = {
-  id: "current",
-  name: "Your current bot",
-  why: `The live bot's rules: EMA ${config.emaFast}/${config.emaSlow} crossover with RSI filter, ${config.stopLossPct * 100}% stop-loss, ${config.takeProfitPct * 100}% take-profit, on 15-minute candles.`,
-  params: [null],
-  label: () => "15-min candles",
-  make: (_p, bars) => {
-    const candles: Candle[] = bars.map((b) => ({ ...b, openTime: b.t, volume: 0, closeTime: b.t + 899_999 }));
-    const ind = computeIndicators(candles, config);
-    return (i, ctx) => {
-      const a = liveDecide(i, candles, ind, { inPosition: ctx.holding >= 0, entryPriceUsdt: ctx.entryPrice }, config);
-      if (a.type === "BUY") return 0;
-      if (a.type === "SELL") return -1;
-      return ctx.holding;
-    };
+export const momentum: SingleCoinFamily<number> = {
+  id: "momentum",
+  name: "Momentum (weekly)",
+  why: "Every Sunday, hold the coin if it's worth more than it was N days ago; otherwise sit in cash. Slow, about one trade a year.",
+  params: [120, 250, 365],
+  label: (n) => `vs ${n} days ago`,
+  make: (n, bars) => {
+    const closes = bars.map((b) => b.close);
+    return (i, ctx) => (new Date(bars[i].t).getUTCDay() !== 0 ? ctx.holding : i >= n && closes[i] > closes[i - n] ? 0 : -1);
   },
 };
 
-export const SINGLE_COIN_FAMILIES = [hold, trend, cross, breakout, fear];
+/** The exact rule the live bot runs (src/config.ts → src/rules.ts), with its fixed settings. */
+const liveRule = ruleFromConfig(config);
+export const liveBot: SingleCoinFamily<null> = {
+  id: "live",
+  name: `Your live bot: ${liveRule.name}`,
+  why: `The rule the live bot runs. ${liveRule.why}`,
+  params: [null],
+  label: () => "fixed settings",
+  make: (_p, bars) => toDecider(liveRule.make(bars)),
+};
+
+export const SINGLE_COIN_FAMILIES = [hold, trend, cross, breakout, momentum, fear];
 
 /** Rotation across coins: every 7 days, hold the coin with the best L-day return (cash if all negative). */
 export const rotation = {
