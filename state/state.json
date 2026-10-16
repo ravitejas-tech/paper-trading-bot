@@ -1,12 +1,18 @@
 {
-  "broker": {
-    "cashInr": 500,
+  "version": 2,
+  "session": "momentum-365:BTC",
+  "startedAt": 1792140360205,
+  "startPriceUsdt": 82367.99,
+  "lastCandleTime": 1792022400000,
+  "wallet": {
+    "cash": 500,
     "qty": 0,
-    "entryPriceUsdt": 0,
-    "entryCostInr": 0,
-    "totalTdsInr": 0,
-    "trades": []
+    "costBasis": 0,
+    "entryPrice": 0,
+    "fy": {},
+    "taxPaid": 0,
+    "tdsRefunded": 0
   },
-  "lastCandleTime": 1792123200000,
-  "lastAction": "HOLD · no signal"
+  "trades": [],
+  "lastAction": "Started with ₹500.00"
 }
