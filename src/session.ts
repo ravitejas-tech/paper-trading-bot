@@ -21,7 +21,17 @@ export interface SavedState {
   lastCandleTime: number; // open time of the newest daily candle already acted on
   wallet: WalletState;
   trades: Trade[];
+  decisions?: Decision[]; // every decision the rule made, trade or not
   lastAction: string;
+}
+
+export interface Decision {
+  at: string;        // ISO time the bot acted on it
+  candle: string;    // date (UTC) of the daily candle that decided it
+  hold: boolean;     // true = hold the coin, false = hold cash
+  action: "BUY" | "SELL" | "none";
+  priceUsdt: number; // market price when the bot acted
+  reason: string;
 }
 
 const inr = (x: number) => `₹${x.toFixed(2)}`;
@@ -93,6 +103,12 @@ export class LiveSession {
     if (d.at !== null) {
       const reason = logic.explain(d.at);
       const fill = d.hold === this.wallet.inPosition ? null : d.hold ? this.wallet.buy(priceInr, now) : this.wallet.sell(priceInr, now);
+      const decision: Decision = {
+        at: new Date(now).toISOString(), candle: new Date(bars[d.at].t).toISOString().slice(0, 10),
+        hold: d.hold, action: fill ? fill.side : "none", priceUsdt: price, reason,
+      };
+      (st.decisions ??= []).push(decision);
+      this.storage.logDecision(decision);
       if (fill) {
         const t = toTrade(fill, config.usdtToInr, reason);
         st.trades.push(t);
@@ -139,6 +155,7 @@ export class LiveSession {
       status,
       nextCheck: nextCheck(this.rule, Date.now()),
       triggerUsdt: this.triggerUsdt,
+      decisions: (this.st.decisions ?? []).slice(-30).reverse(),
     });
   }
 }

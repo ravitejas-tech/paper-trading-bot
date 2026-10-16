@@ -478,6 +478,7 @@
       <div class="card-head"><h2>Trades</h2><span class="count" id="trade-count"></span></div>
       <div id="trades"></div>
       <button class="more" id="more" hidden>Show more</button>
+      <div id="decisions"></div>
     </section>
 
     <section class="card span-4 rule-card" id="rule" style="align-self:start"></section>
@@ -825,6 +826,7 @@
     ].join("");
 
     renderTrades(d, isLive);
+    renderDecisions(d, isLive, coin);
     renderRule(d, isLive);
   }
 
@@ -884,6 +886,24 @@
     $("more").hidden = d.trades.length <= state.shown;
   }
 
+  function renderDecisions(d, isLive, coin) {
+    const el = $("decisions");
+    if (!isLive) { el.innerHTML = ""; return; }
+    const list = d.decisions || [];
+    const label = (x) => x.action === "BUY" ? "Buy" : x.action === "SELL" ? "Sell" : x.hold ? `Hold ${coin}` : "Stay in cash";
+    el.innerHTML = `<div class="card-head" style="margin:22px 0 10px"><h2>Decision log</h2><span class="count">${list.length ? `${list.length} ${list.length === 1 ? "decision" : "decisions"}` : ""}</span></div>` +
+      (list.length ? `<table class="trades-table"><thead><tr><th>Decision</th><th>Acted</th><th class="r">Price</th><th class="r">Candle</th><th class="r">Trade</th><th>Why</th></tr></thead><tbody>${list.map((x) => `
+        <tr>
+          <td class="side-c"><span class="side-pill ${x.action === "BUY" ? "BUY" : x.action === "SELL" ? "SELL" : ""}" ${x.action === "none" ? 'style="background:var(--surface-3);color:var(--text-2)"' : ""}>${esc(label(x))}</span></td>
+          <td class="when">${esc(fmtTime(x.at, new Date(x.at).getFullYear() !== new Date().getFullYear()))}</td>
+          <td class="r price">${esc(usd(x.priceUsdt))}</td>
+          <td class="r amt">${esc(fmtDate(Date.parse(x.candle + "T12:00:00Z")))}</td>
+          <td class="r res flat">${x.action === "none" ? "no trade" : esc(x.action)}</td>
+          <td class="why">${esc(x.reason)}</td>
+        </tr>`).join("")}</tbody></table>`
+      : `<p class="hint" style="margin:0">No decisions yet. The first one is due ${d.nextCheck ? esc(new Date(d.nextCheck).toLocaleString("en-IN", { ...IST, weekday: "long", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })) + " IST" : "after the next Sunday close"}.</p>`);
+  }
+
   function renderRule(d, isLive) {
     const set = d.settings;
     $("rule").innerHTML = `<div class="eyebrow">How it decides</div><h3>${esc(set.strategy)}</h3><p>${esc(set.why)}</p>
@@ -891,7 +911,7 @@
       <div class="kv"><span>Trades at</span><b>${isLive ? "market price, next run" : "next day's open"}</b></div>
       <div class="cost-chips"><span>Fee <b>${esc(set.feePct)}%</b></span><span>Slippage <b>${esc(set.slippagePct)}%</b></span><span>TDS <b>${esc(set.tdsPct)}%</b> on sales</span><span>Tax <b>${esc(Number(set.taxPct).toFixed(1))}%</b> on wins</span></div>
       <p>Values assume you sold everything and paid the tax. TDS is refunded on 1 Aug after each tax year; losses can't offset gains. USDT at ₹${esc(set.usdtToInr)}.</p>
-      <p><b style="color:var(--text)">Raw data:</b> ${d.trades.length ? `<a href="data/${isLive ? "trades" : "backtest_trades"}.csv">trades.csv</a> · ` : ""}<a href="data/${isLive ? "equity" : "backtest_equity"}.csv">equity.csv</a></p>
+      <p><b style="color:var(--text)">Raw data:</b> ${d.trades.length ? `<a href="data/${isLive ? "trades" : "backtest_trades"}.csv">trades.csv</a> · ` : ""}<a href="data/${isLive ? "equity" : "backtest_equity"}.csv">equity.csv</a>${isLive && d.decisions && d.decisions.length ? ` · <a href="data/decisions.csv">decisions.csv</a>` : ""}</p>
       <p class="fine">Only consider real money if the rule beats buy &amp; hold after tax for months, in both the backtest and live paper trading.</p>`;
   }
 

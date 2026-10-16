@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { coinOf, Config } from "./config.js";
 import { Rule } from "./rules.js";
+import type { Decision } from "./session.js";
 import { EquityPoint, Stats, Trade } from "./stats.js";
 
 /** Keep charts light on phones: at most ~maxPoints, always keeping the last point. */
@@ -25,6 +26,7 @@ export interface DashboardExtra {
   status?: string;
   nextCheck?: number; // ms: when the rule next makes a decision
   triggerUsdt?: number; // the close that flips that decision (hold above it)
+  decisions?: Decision[]; // newest first
 }
 
 const px = (x: number) => +x.toPrecision(7);
