@@ -1,9 +1,9 @@
-Period:            2020-01-01T00:00:00.000Z  →  2026-10-18T23:59:59.999Z
+Period:            2020-01-01T00:00:00.000Z  →  2026-10-19T23:59:59.999Z
 Market:            BTC, daily candles
 Rule:              365-day momentum, checked weekly
 Starting capital:  ₹500.00
 Value now:         ₹4743.19  (+848.64%)  ← if you sold everything and paid all tax
-Buy & hold:        ₹4070.15  (+714.03%)  ← same costs and tax; the rule must beat this
+Buy & hold:        ₹4061.69  (+712.34%)  ← same costs and tax; the rule must beat this
 Completed trades:  4   Win rate: 100.0%
 Avg win / loss:    ₹1541.86 / ₹0.00  (after fees, before tax)
 Worst drop:        -49.90%  (buy & hold: -73.09%)
