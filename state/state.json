@@ -3,7 +3,7 @@
   "session": "momentum-365:BTC",
   "startedAt": 1792140360205,
   "startPriceUsdt": 82367.99,
-  "lastCandleTime": 1793404800000,
+  "lastCandleTime": 1793491200000,
   "wallet": {
     "cash": 500,
     "qty": 0,
@@ -14,7 +14,7 @@
     "tdsRefunded": 0
   },
   "trades": [],
-  "lastAction": "In cash · price $80,154 is below $111,646 from 365 days ago",
+  "lastAction": "In cash · price $78,354 is below $110,098 from 365 days ago",
   "decisions": [
     {
       "at": "2026-10-19T01:12:40.862Z",
@@ -31,6 +31,14 @@
       "action": "none",
       "priceUsdt": 80168,
       "reason": "price $80,154 is below $111,646 from 365 days ago"
+    },
+    {
+      "at": "2026-11-02T05:54:04.145Z",
+      "candle": "2026-11-01",
+      "hold": false,
+      "action": "none",
+      "priceUsdt": 78408.01,
+      "reason": "price $78,354 is below $110,098 from 365 days ago"
     }
   ]
 }
