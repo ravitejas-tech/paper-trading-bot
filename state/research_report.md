@@ -1,4 +1,4 @@
-# Research results (2026-11-05)
+# Research results (2026-11-11)
 
 Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (past data only).
 
@@ -6,25 +6,25 @@ Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (p
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹3,993 | ₹333 | -73% | 30% | 376 | 0.1 |
-| Trend filter | ₹904 | ₹446 | -78% | 20% | 283 | 6.7 |
-| Average crossover | ₹434 | ₹260 | -70% | 14% | 380 | 3.1 |
-| Breakout | ₹998 | ₹425 | -62% | 17% | 311 | 2.9 |
-| Momentum (weekly) | ₹2,510 | ₹325 | -60% | 26% | 448 | 1.8 |
-| Fear & Greed (market mood) | ₹376 | ₹211 | -75% | 0% | 614 | 0.7 |
+| Buy & hold | ₹3,674 | ₹333 | -73% | 30% | 376 | 0.1 |
+| Trend filter | ₹852 | ₹446 | -78% | 20% | 283 | 6.7 |
+| Average crossover | ₹398 | ₹260 | -70% | 14% | 380 | 3.1 |
+| Breakout | ₹928 | ₹425 | -62% | 17% | 311 | 2.9 |
+| Momentum (weekly) | ₹2,300 | ₹325 | -60% | 25% | 448 | 1.7 |
+| Fear & Greed (market mood) | ₹343 | ₹211 | -75% | 0% | 614 | 0.7 |
 | Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
-| Your live bot: 365-day momentum, checked weekly | ₹4,743 | ₹325 | -50% | 29% | 467 | 0.6 |
+| Your live bot: 365-day momentum, checked weekly | ₹4,743 | ₹325 | -50% | 28% | 467 | 0.6 |
 
 ## ETH (from 2020-01-01)
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹6,594 | ₹416 | -78% | 28% | 238 | 0.1 |
-| Trend filter | ₹1,685 | ₹304 | -68% | 17% | 193 | 7.2 |
+| Buy & hold | ₹5,608 | ₹416 | -78% | 28% | 238 | 0.1 |
+| Trend filter | ₹1,685 | ₹304 | -68% | 17% | 193 | 7.1 |
 | Average crossover | ₹3,525 | ₹481 | -59% | 17% | 160 | 3.2 |
 | Breakout | ₹2,375 | ₹263 | -59% | 20% | 177 | 2.5 |
 | Momentum (weekly) | ₹3,747 | ₹367 | -63% | 22% | 249 | 2 |
-| Fear & Greed (market mood) | ₹418 | ₹183 | -80% | 3% | 989 | 0.7 |
+| Fear & Greed (market mood) | ₹360 | ₹183 | -80% | 3% | 989 | 0.7 |
 | Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
 | Your live bot: 365-day momentum, checked weekly | ₹3,699 | ₹367 | -56% | 23% | 187 | 1.3 |
 
@@ -32,12 +32,12 @@ Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (p
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹18,160 | ₹336 | -70% | 32% | 454 | 0.1 |
-| Trend filter | ₹10,260 | ₹370 | -49% | 22% | 330 | 9.4 |
-| Average crossover | ₹6,642 | ₹180 | -65% | 25% | 839 | 3.1 |
+| Buy & hold | ₹17,174 | ₹336 | -70% | 32% | 454 | 0.1 |
+| Trend filter | ₹9,798 | ₹370 | -49% | 22% | 330 | 9.5 |
+| Average crossover | ₹6,354 | ₹180 | -65% | 25% | 839 | 3.1 |
 | Breakout | ₹6,326 | ₹493 | -48% | 27% | 264 | 3.8 |
 | Momentum (weekly) | ₹4,281 | ₹490 | -71% | 20% | 291 | 2.5 |
-| Fear & Greed (market mood) | ₹389 | ₹186 | -69% | 0% | 838 | 0.7 |
+| Fear & Greed (market mood) | ₹373 | ₹186 | -69% | 0% | 838 | 0.7 |
 | Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
 | Your live bot: 365-day momentum, checked weekly | ₹3,022 | ₹303 | -70% | 20% | 514 | 2.5 |
 
@@ -45,12 +45,12 @@ Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (p
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹280 | ₹28 | -95% | 32% | 298 | 0.2 |
+| Buy & hold | ₹244 | ₹28 | -95% | 32% | 298 | 0.2 |
 | Trend filter | ₹214 | ₹175 | -83% | 22% | 452 | 10.7 |
-| Average crossover | ₹545 | ₹137 | -77% | 26% | 333 | 5.6 |
+| Average crossover | ₹491 | ₹137 | -77% | 26% | 333 | 5.6 |
 | Breakout | ₹1,286 | ₹350 | -41% | 26% | 365 | 1.2 |
 | Momentum (weekly) | ₹694 | ₹367 | -72% | 29% | 321 | 2.1 |
-| Fear & Greed (market mood) | ₹75 | ₹32 | -94% | 2% | 554 | 0.8 |
+| Fear & Greed (market mood) | ₹64 | ₹32 | -94% | 2% | 554 | 0.8 |
 | Rotation (strongest of 5 coins) | ₹302 | ₹82 | -84% | 42% | 267 | 16.3 |
 | Your live bot: 365-day momentum, checked weekly | ₹181 | ₹82 | -84% | 29% | 302 | 1.9 |
 
@@ -58,12 +58,12 @@ Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (p
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹2,477 | ₹350 | -79% | 41% | 386 | 0.1 |
-| Trend filter | ₹58 | ₹58 | -97% | 35% | 250 | 11.7 |
+| Buy & hold | ₹2,035 | ₹350 | -79% | 41% | 386 | 0.1 |
+| Trend filter | ₹54 | ₹54 | -97% | 35% | 250 | 11.7 |
 | Average crossover | ₹149 | ₹137 | -75% | 22% | 152 | 5.1 |
 | Breakout | ₹525 | ₹181 | -83% | 31% | 390 | 2.9 |
-| Momentum (weekly) | ₹1,053 | ₹368 | -67% | 23% | 575 | 2.3 |
-| Fear & Greed (market mood) | ₹271 | ₹181 | -73% | 1% | 900 | 1.2 |
+| Momentum (weekly) | ₹857 | ₹368 | -68% | 23% | 575 | 2.3 |
+| Fear & Greed (market mood) | ₹222 | ₹181 | -73% | 1% | 900 | 1.2 |
 | Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
 | Your live bot: 365-day momentum, checked weekly | ₹1,189 | ₹312 | -67% | 24% | 432 | 1.3 |
 
