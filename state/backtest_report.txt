@@ -1,4 +1,4 @@
-Period:            2020-01-01T00:00:00.000Z  →  2026-11-22T23:59:59.999Z
+Period:            2020-01-01T00:00:00.000Z  →  2026-11-23T23:59:59.999Z
 Market:            BTC, daily candles
 Rule:              365-day momentum, checked weekly
 Starting capital:  ₹500.00
