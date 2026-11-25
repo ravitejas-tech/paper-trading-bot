@@ -1,4 +1,4 @@
-# Research results (2026-11-18)
+# Research results (2026-11-25)
 
 Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (past data only).
 
@@ -6,70 +6,70 @@ Start ₹500, all costs and Indian tax included. Settings chosen walk-forward (p
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹3,252 | ₹333 | -73% | 30% | 376 | 0.1 |
+| Buy & hold | ₹3,008 | ₹333 | -73% | 30% | 376 | 0.1 |
 | Trend filter | ₹834 | ₹446 | -78% | 20% | 283 | 6.7 |
-| Average crossover | ₹351 | ₹260 | -70% | 14% | 380 | 3.1 |
+| Average crossover | ₹319 | ₹260 | -71% | 14% | 380 | 3 |
 | Breakout | ₹928 | ₹425 | -62% | 17% | 311 | 2.9 |
 | Momentum (weekly) | ₹2,037 | ₹325 | -60% | 25% | 448 | 1.7 |
-| Fear & Greed (market mood) | ₹299 | ₹211 | -75% | 0% | 614 | 0.7 |
-| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
+| Fear & Greed (market mood) | ₹274 | ₹211 | -75% | 0% | 614 | 0.7 |
+| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 5.9 |
 | Your live bot: 365-day momentum, checked weekly | ₹4,743 | ₹325 | -50% | 28% | 467 | 0.6 |
 
 ## ETH (from 2020-01-01)
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹5,002 | ₹416 | -78% | 28% | 238 | 0.1 |
+| Buy & hold | ₹4,617 | ₹416 | -78% | 28% | 238 | 0.1 |
 | Trend filter | ₹1,685 | ₹304 | -68% | 17% | 193 | 7.1 |
 | Average crossover | ₹3,525 | ₹481 | -59% | 17% | 160 | 3.2 |
 | Breakout | ₹2,375 | ₹263 | -59% | 20% | 177 | 2.5 |
 | Momentum (weekly) | ₹3,747 | ₹367 | -63% | 21% | 249 | 2 |
-| Fear & Greed (market mood) | ₹320 | ₹183 | -80% | 3% | 989 | 0.7 |
-| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
+| Fear & Greed (market mood) | ₹295 | ₹183 | -80% | 3% | 989 | 0.7 |
+| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 5.9 |
 | Your live bot: 365-day momentum, checked weekly | ₹3,699 | ₹367 | -56% | 23% | 187 | 1.3 |
 
 ## BNB (from 2020-01-01)
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹15,096 | ₹336 | -70% | 32% | 454 | 0.1 |
-| Trend filter | ₹9,798 | ₹370 | -49% | 22% | 330 | 9.5 |
-| Average crossover | ₹5,587 | ₹180 | -65% | 24% | 839 | 3.1 |
+| Buy & hold | ₹13,874 | ₹336 | -70% | 32% | 454 | 0.1 |
+| Trend filter | ₹9,798 | ₹370 | -49% | 22% | 330 | 9.4 |
+| Average crossover | ₹5,428 | ₹180 | -65% | 24% | 839 | 3 |
 | Breakout | ₹6,326 | ₹493 | -48% | 27% | 264 | 3.8 |
 | Momentum (weekly) | ₹4,281 | ₹490 | -71% | 20% | 291 | 2.5 |
-| Fear & Greed (market mood) | ₹337 | ₹186 | -69% | 0% | 838 | 0.7 |
-| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
-| Your live bot: 365-day momentum, checked weekly | ₹3,022 | ₹303 | -70% | 20% | 514 | 2.5 |
+| Fear & Greed (market mood) | ₹308 | ₹186 | -69% | 0% | 838 | 0.7 |
+| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 5.9 |
+| Your live bot: 365-day momentum, checked weekly | ₹3,022 | ₹303 | -70% | 19% | 514 | 2.5 |
 
 ## SOL (from 2022-01-01)
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹220 | ₹28 | -95% | 32% | 298 | 0.2 |
-| Trend filter | ₹214 | ₹175 | -83% | 22% | 452 | 10.7 |
-| Average crossover | ₹444 | ₹137 | -77% | 26% | 333 | 5.5 |
+| Buy & hold | ₹204 | ₹28 | -95% | 32% | 298 | 0.2 |
+| Trend filter | ₹214 | ₹175 | -83% | 22% | 452 | 10.6 |
+| Average crossover | ₹435 | ₹137 | -77% | 26% | 333 | 5.5 |
 | Breakout | ₹1,286 | ₹350 | -41% | 26% | 365 | 1.2 |
-| Momentum (weekly) | ₹694 | ₹367 | -72% | 29% | 321 | 2.1 |
-| Fear & Greed (market mood) | ₹57 | ₹32 | -94% | 2% | 554 | 0.8 |
-| Rotation (strongest of 5 coins) | ₹302 | ₹82 | -84% | 41% | 267 | 16.2 |
+| Momentum (weekly) | ₹694 | ₹367 | -72% | 28% | 321 | 2 |
+| Fear & Greed (market mood) | ₹52 | ₹32 | -94% | 2% | 554 | 0.8 |
+| Rotation (strongest of 5 coins) | ₹302 | ₹82 | -84% | 41% | 267 | 16.1 |
 | Your live bot: 365-day momentum, checked weekly | ₹181 | ₹82 | -84% | 29% | 302 | 1.8 |
 
 ## XRP (from 2020-01-01)
 
 | Rule | ₹500 → | Lowest | Worst drop | 2x within 1y | Median days to 2x | Trades/yr |
 |---|---|---|---|---|---|---|
-| Buy & hold | ₹1,905 | ₹350 | -79% | 40% | 386 | 0.1 |
+| Buy & hold | ₹1,801 | ₹350 | -79% | 40% | 386 | 0.1 |
 | Trend filter | ₹54 | ₹54 | -97% | 35% | 250 | 11.6 |
 | Average crossover | ₹149 | ₹137 | -75% | 22% | 152 | 5.1 |
 | Breakout | ₹525 | ₹181 | -83% | 31% | 390 | 2.9 |
 | Momentum (weekly) | ₹792 | ₹368 | -72% | 23% | 575 | 2.3 |
-| Fear & Greed (market mood) | ₹207 | ₹181 | -73% | 1% | 900 | 1.2 |
-| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 6 |
+| Fear & Greed (market mood) | ₹195 | ₹181 | -73% | 1% | 900 | 1.2 |
+| Rotation (strongest of 5 coins) | ₹-385 | ₹-406 | -112% | 50% | 209 | 5.9 |
 | Your live bot: 365-day momentum, checked weekly | ₹1,189 | ₹312 | -67% | 24% | 432 | 1.3 |
 
 ## Beat buy & hold?
 
-- Trend filter: more money on none; smaller worst drop on ETH, BNB, SOL (tested: BTC, ETH, BNB, SOL, XRP)
+- Trend filter: more money on SOL; smaller worst drop on ETH, BNB, SOL (tested: BTC, ETH, BNB, SOL, XRP)
 - Average crossover: more money on SOL; smaller worst drop on BTC, ETH, BNB, SOL, XRP (tested: BTC, ETH, BNB, SOL, XRP)
 - Breakout: more money on SOL; smaller worst drop on BTC, ETH, BNB, SOL (tested: BTC, ETH, BNB, SOL, XRP)
 - Momentum (weekly): more money on SOL; smaller worst drop on BTC, ETH, SOL, XRP (tested: BTC, ETH, BNB, SOL, XRP)
